@@ -1,0 +1,1 @@
+# # Modified USGS spectral library class
