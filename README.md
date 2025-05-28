@@ -2,7 +2,7 @@
 
 ## Directory Structure
 
-```
+```{markdown}
 usgs_spectral_app/
 ├── app.py                      # Main Shiny application
 ├── requirements.txt            # Python dependencies
@@ -26,23 +26,27 @@ usgs_spectral_app/
 ## Key Features of the Shiny App
 
 ### 1. **Data Loading Panel**
+
 - Directory selection for USGS Spectral Library
 - Satellite sensor selection (ASTER, LSAT8, SNTL2, WV3)
 - Progress indicators for data loading
 - Cache management
 
 ### 2. **Spectral Analysis Dashboard**
+
 - Interactive mineral family selection
-- Spectrum visualization with band overlays
+- Spectrum visualisation  with band overlays
 - Comparative analysis tools
 - Band response function plots
 
 ### 3. **Export and Reporting**
+
 - Export plots as PNG/PDF
 - Generate spectral analysis reports
 - Data export in CSV format
 
 ### 4. **Interactive Features**
+
 - Real-time plot updates
 - Zoom and pan capabilities
 - Hover information
@@ -51,13 +55,16 @@ usgs_spectral_app/
 ## File Descriptions
 
 ### `app.py`
+
 Main Shiny application with UI and server logic, including:
+
 - Sidebar for controls and settings
 - Main panel with tabbed interface
 - Reactive functions for data processing
 - Plot rendering and updates
 
 ### `modules/spectral_loader.py`
+
 Enhanced version of your USGSSatelliteSpectra class with:
 - Caching mechanisms
 - Progress reporting
@@ -65,20 +72,26 @@ Enhanced version of your USGSSatelliteSpectra class with:
 - Shiny-specific optimizations
 
 ### `modules/data_processing.py`
+
 Data processing utilities including:
+
 - Spectrum filtering and selection
 - Statistical analysis functions
 - Data validation and cleaning
 
 ### `modules/plotting.py`
+
 Plotting utilities with:
+
 - Interactive plot generation
 - Consistent styling
 - Export functionality
 - Performance optimizations
 
 ### `config.py`
+
 Configuration management:
+
 - Default settings
 - File paths
 - Plotting parameters

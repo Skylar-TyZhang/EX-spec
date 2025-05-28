@@ -1,1 +1,1 @@
-# # Modified USGS spectral library class
+# Modified USGS spectral library class
