@@ -1,0 +1,1 @@
+'''Elements for the control panel of the application.'''
