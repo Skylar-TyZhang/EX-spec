@@ -21,185 +21,209 @@ lib = None
 mineral_families = []
 all_minerals = []
 
+
 def Initialise_library():
     """Initialise the spectral library and extract mineral information"""
     global lib, mineral_families, all_minerals
-    
+
     try:
         lib = USGSSatelliteSpectra(BASE_DIR, SATELLITE)
         lib.load_minerals()
-        
+
         # Extract unique mineral families and all minerals
         all_minerals = list(lib.spectra.keys())
-        
+
         # Extract mineral families (base mineral names)
         mineral_families = []
         for key in all_minerals:
-            material = lib.spectra[key]['metadata']['material']
+            material = lib.spectra[key]["metadata"]["material"]
             if material not in mineral_families:
                 mineral_families.append(material)
-        
+
         mineral_families.sort()
-        print(f"Initialised library with {len(all_minerals)} spectra and {len(mineral_families)} mineral families")
-        
+        print(
+            f"Initialised library with {len(all_minerals)} spectra and {len(mineral_families)} mineral families"
+        )
+
     except Exception as e:
         print(f"Error initialising library: {e}")
         lib = None
         mineral_families = []
         all_minerals = []
 
+
 # Initialise the library when the app starts
 Initialise_library()
 
 # Define the UI with card-based design
 app_ui = ui.page_fluid(
-    ui_tags(),
+    ui.tags.head(
+        ui.tags.style("""
+            .content-wrapper {
+                padding: 20px;
+            }
+            .plot-container {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 10px 0;
+                background-color: #f9f9f9;
+            }
+            .control-panel {
+                background-color: #f5f5f5;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            .info-box {
+                background-color: #e3f2fd;
+                border-left: 4px solid #2196f3;
+                padding: 15px;
+                margin: 10px 0;
+            }
+            .error-box {
+                background-color: #ffebee;
+                border-left: 4px solid #f44336;
+                padding: 15px;
+                margin: 10px 0;
+            }
+        """)
+    ),
+    
     ui.div(
-        {"class": "main-container"},
+        {"class": "content-wrapper"},
         
         # Header
+        # Change to top nav bar with 2 pages
         ui.div(
-            {"class": "card"},
-            ui.h1("USGS Spectral Library Visualisation Tool", 
-                  style="color: #1976d2; text-align: center; margin-bottom: 10px;"),
-            ui.p("Interactive tool for exploring satellite sensor spectral data", 
-                 style="text-align: center; color: #666; margin: 0;")
+            ui.h1("USGS Spectral Library Visualisation Tool", style="color: #1976d2; text-align: center;"),
+            ui.hr(),
         ),
         
         # Control Panel
         ui.div(
-            {"class": "card control-card"},
-            ui.h3("Control Panel", style="margin-top: 0;"),
+            {"class": "control-panel"},
+            ui.h3("Control Panel"),
             
-            ui.layout_columns(
-                # Satellite Selection
-                ui.div(
-                    ui.h5("Satellite Sensor"),
+            ui.layout_sidebar(
+                ui.panel_sidebar(
+                    # Satellite selection
                     ui.input_select(
                         "satellite",
                         None,
                         choices=["ASTER", "LSAT8", "SNTL2", "WV3"],
-                        selected=SATELLITE
+                        selected=SATELLITE,
                     ),
-                    ui.input_action_button("load_data", "Load Data", class_="btn-primary btn-sm")
-                ),
-                
-                # Mineral Family Selection
-                ui.div(
-                    ui.h5("Mineral Family"),
+                    
+                    ui.br(),
+                    
+                    # Mineral family selection
                     ui.input_select(
                         "mineral_family",
-                        None,
+                        "Select Mineral Family:",
                         choices=mineral_families if mineral_families else ["No data loaded"],
                         selected=mineral_families[0] if mineral_families else None
-                    )
-                ),
-                
-                # Individual Mineral Selection
-                ui.div(
-                    ui.h5("Individual Samples"),
+                    ),
+                    
+                    ui.br(),
+                    
+                    # Individual mineral selection (updated based on mineral family)
                     ui.input_select(
                         "individual_mineral",
                         None,
                         choices=[],
                         selected=None,
-                        multiple=True,
-                        size="4"
-                    )
-                ),
-                
-                # Options
-                ui.div(
-                    ui.h5("Display Options"),
+                        multiple=True
+                    ),
+                    
+                    ui.br(),
+                    
+                    # Maximum samples slider
                     ui.input_slider(
                         "max_samples",
-                        "Max Samples:",
-                        min=1, max=20, value=5, step=1
+                        "Maximum Samples to Display:",
+                        min=1,
+                        max=20,
+                        value=5,
+                        step=1
                     ),
-                    ui.input_checkbox("show_band_centers", "Band Centers", value=True),
-                    ui.input_checkbox("show_band_ranges", "Band Ranges", value=True),
-                    ui.input_checkbox("show_response_functions", "Response Functions", value=True)
+                    
+                    ui.br(),
+                    
+                    # Visualisation options for spectra band comparison 
+                    ui.h4("Visualisation Options"),
+                    ui.input_checkbox("show_band_centers", "Show Band Centers", value=True),
+                    ui.input_checkbox("show_band_ranges", "Show Band Ranges", value=True),
+                    ui.input_checkbox("show_response_functions", "Show Response Functions", value=True),
+                    
+                    width=3
                 ),
                 
-                col_widths=[3, 3, 3, 3]
-            ),
-            
-            # Status Info
-            ui.output_ui("status_info")
-        ),
-        
-        # Main Content Tabs
-        ui.navset_tab(
-            # Band Information Tab
-            ui.nav_panel(
-                "Band Information",
-                ui.div(
-                    {"class": "tab-content"},
-                    
-                    # Band Info Card
+                ui.panel_main(
+                    # Action buttons
                     ui.div(
-                        {"class": "card info-card"},
-                        ui.div(
-                            ui.h4("Band Information Summary", style="margin-top: 0;"),
-                            ui.div(
-                                ui.input_action_button("download_band_table", "Download Table", 
-                                                     class_="btn-success download-btn btn-sm"),
-                                ui.input_action_button("download_band_plot", "Download Plot", 
-                                                     class_="btn-info download-btn btn-sm"),
-                                style="float: right;"
-                            ),
-                            style="overflow: auto;"
-                        ),
-                        ui.output_table("band_info_table")
+                        ui.input_action_button("load_data", "Load/Reload Data", class_="btn-primary"),
+                        ui.input_action_button("plot_family", "Plot Mineral Family", class_="btn-success"),
+                        ui.input_action_button("plot_individual", "Plot Selected Minerals", class_="btn-info"),
+                        ui.input_action_button("plot_bands", "Show Band Details", class_="btn-warning"),
+                        ui.input_action_button("export_data", "Export Data", class_="btn-secondary"),
+                        style="margin-bottom: 20px;"
                     ),
                     
-                    # Band Plot Card
-                    ui.div(
-                        {"class": "card plot-card"},
-                        ui.h4("Band Response Functions", style="margin-top: 0;"),
-                        ui.output_plot("band_plot", height="500px")
-                    )
-                )
-            ),
-            
-            # Spectral Data Tab
-            ui.nav_panel(
-                "Spectral Data",
-                ui.div(
-                    {"class": "tab-content"},
+                    # Status/Info display
+                    ui.output_ui("status_info"),
                     
-                    # Spectral Plot Card
-                    ui.div(
-                        {"class": "card plot-card"},
-                        ui.div(
-                            ui.h4("Spectral Visualization", style="margin-top: 0;"),
-                            ui.div(
-                                ui.input_action_button("download_spectra_table", "Download Data", 
-                                                     class_="btn-success download-btn btn-sm"),
-                                ui.input_action_button("download_spectra_plot", "Download Plot", 
-                                                     class_="btn-info download-btn btn-sm"),
-                                style="float: right;"
-                            ),
-                            style="overflow: auto;"
-                        ),
-                        ui.output_plot("main_plot", height="500px")
-                    ),
-                    
-                    # Data Table Card
-                    ui.div(
-                        {"class": "card"},
-                        ui.h4("Selected Mineral Data", style="margin-top: 0;"),
-                        ui.output_table("selected_mineral_table")
-                    )
+                    width=9
                 )
             )
         ),
         
-        # Download Status
-        ui.div(
-            {"class": "card"},
-            ui.h5("Download Status"),
-            ui.output_text("download_status")
+        # Tabs for different visualisations
+        ui.navset_tab(
+            ui.nav_panel(
+                "Spectral Plots",
+                ui.div(
+                    {"class": "plot-container"},
+                    ui.output_plot("main_plot", height="600px")
+                )
+            ),
+            
+            ui.nav_panel(
+                "Band Response Functions",
+                ui.div(
+                    {"class": "plot-container"},
+                    ui.output_plot("band_plot", height="600px")
+                )
+            ),
+            
+            ui.nav_panel(
+                "Band Information",
+                ui.div(
+                    {"class": "plot-container"},
+                    ui.output_table("band_info_table")
+                )
+            ),
+            
+            ui.nav_panel(
+                "Spectral Data",
+                ui.div(
+                    {"class": "plot-container"},
+                    ui.output_table("data_summary")
+                )
+            ),
+            
+            ui.nav_panel(
+                "Export/Download",
+                ui.div(
+                    {"class": "plot-container"},
+                    ui.h4("Export Options"),
+                    ui.input_action_button("download_csv", "Download Data as CSV", class_="btn-primary"),
+                    ui.br(), ui.br(),
+                    ui.input_action_button("download_plots", "Download Current Plot", class_="btn-success"),
+                    ui.br(), ui.br(),
+                    ui.output_text("export_status")
+                )
+            )
         )
     )
 )
@@ -209,19 +233,18 @@ def server(input, output, session):
     # Reactive values
     current_lib = reactive.Value(lib)
     current_plot = reactive.Value(None)
-    current_band_plot = reactive.Value(None)
-    download_message = reactive.Value("")
     
     @reactive.Calc
     def get_filtered_minerals():
         """Get minerals that match the selected family"""
         if not current_lib() or not input.mineral_family():
             return []
-        
-        filtered = [key for key in current_lib().spectra.keys() 
-                   if input.mineral_family() in key]
-        return filtered[:input.max_samples()]
-    
+
+        filtered = [
+            key for key in current_lib().spectra.keys() if input.mineral_family() in key
+        ]
+        return filtered[: input.max_samples()]
+
     @reactive.Effect
     def update_individual_mineral_choices():
         """Update individual mineral choices based on selected family"""
@@ -229,9 +252,9 @@ def server(input, output, session):
         ui.update_select(
             "individual_mineral",
             choices=choices,
-            selected=choices[:min(3, len(choices))] if choices else []
+            selected=choices[: min(3, len(choices))] if choices else [],
         )
-    
+
     @reactive.Effect
     @reactive.event(input.load_data)
     def load_satellite_data():
@@ -240,48 +263,47 @@ def server(input, output, session):
             new_lib = USGSSatelliteSpectra(BASE_DIR, input.satellite())
             new_lib.load_minerals()
             current_lib.set(new_lib)
-            
+
             # Update mineral family choices
             new_families = []
             for key in new_lib.spectra.keys():
-                material = new_lib.spectra[key]['metadata']['material']
+                material = new_lib.spectra[key]["metadata"]["material"]
                 if material not in new_families:
                     new_families.append(material)
-            
+
             new_families.sort()
-            ui.update_select("mineral_family", choices=new_families, selected=new_families[0] if new_families else None)
-            
+            ui.update_select(
+                "mineral_family",
+                choices=new_families,
+                selected=new_families[0] if new_families else None,
+            )
+
         except Exception as e:
             print(f"Error loading satellite data: {e}")
-    
+
     @output
     @render.ui
     def status_info():
         """Display current status and library information"""
         if not current_lib():
             return ui.div(
-                ui.p("⚠️ No spectral library loaded. Please check the data path and try loading data.", 
-                     style="color: #dc3545; margin: 0;")
+                {"class": "error-box"},
+                ui.h4("Error"),
+                ui.p("No spectral library loaded. Please check the data path and try loading data.")
             )
-        
+
         lib_obj = current_lib()
         num_spectra = len(lib_obj.spectra)
         num_bands = len(lib_obj.bands) if lib_obj.bands else 0
-        
+
         return ui.div(
-            {"class": "status-text"},
-            ui.p(f"📡 {input.satellite()} | 📊 {num_spectra} spectra | 🎛️ {num_bands} bands | 🔬 {input.mineral_family() or 'None'} | 📈 {len(get_filtered_minerals())} samples",
-                 style="margin: 5px 0;")
+            {"class": "info-box"},
+            ui.h4(f"Current Satellite: {input.satellite()}"),
+            ui.p(f"Total Spectra Loaded: {num_spectra}"),
+            ui.p(f"Number of Bands: {num_bands}"),
+            ui.p(f"Selected Mineral Family: {input.mineral_family() or 'None'}"),
+            ui.p(f"Available Samples: {len(get_filtered_minerals())}")
         )
-    
-    # Auto-update plots when selections change
-    @reactive.Effect
-    @reactive.event(input.mineral_family, input.individual_mineral, input.show_band_centers, 
-                   input.show_band_ranges, input.show_response_functions)
-    def auto_update_plots():
-        """Automatically update plots when selections change"""
-        # Trigger plot updates by updating reactive values
-        pass
     
     @output
     @render.plot
@@ -289,44 +311,69 @@ def server(input, output, session):
         """Generate the main spectral plot - auto-updates"""
         if not current_lib() or not input.mineral_family():
             fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, 'Select a mineral family to view spectral data',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
+            ax.text(0.5, 0.5, 'No data to display.\nSelect a mineral family and click "Plot Mineral Family"',
+                   ha='center', va='center', transform=ax.transAxes, fontsize=14)
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
-            ax.axis('off')
             return fig
-        
+
         try:
             lib_obj = current_lib()
             
-            # Use individual selection if available, otherwise use family
-            if input.individual_mineral():
-                fig = lib_obj.compare_spectra(
-                    input.individual_mineral(),
-                    figsize=(12, 6),
-                    title=f"{input.satellite()} - Selected Minerals"
-                )
-            else:
-                fig = lib_obj.plot_spectrum_with_bands(
-                    input.mineral_family(),
-                    figsize=(12, 6),
-                    show_response_functions=input.show_response_functions(),
-                    show_band_centers=input.show_band_centers(),
-                    show_band_ranges=input.show_band_ranges()
-                )
+            # Create the plot based on user selections
+            fig = lib_obj.plot_spectrum_with_bands(
+                input.mineral_family(),
+                figsize=(14, 8),
+                show_response_functions=input.show_response_functions(),
+                show_band_centers=input.show_band_centers(),
+                show_band_ranges=input.show_band_ranges()
+            )
             
             current_plot.set(fig)
+            return fig
+
+        except Exception as e:
+            fig, ax = plt.subplots(figsize=(12, 6))
+            ax.text(
+                0.5,
+                0.5,
+                f"Error generating plot:\n{str(e)}",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=12,
+                color="red",
+            )
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            return fig
+    
+    @output
+    @render.plot
+    @reactive.event(input.plot_individual)
+    def individual_plot():
+        """Plot selected individual minerals"""
+        if not current_lib() or not input.individual_mineral():
+            return main_plot()
+        
+        try:
+            lib_obj = current_lib()
+            selected_minerals = input.individual_mineral()
+            
+            fig = lib_obj.compare_spectra(
+                selected_minerals,
+                figsize=(12, 8),
+                title=f"{input.satellite()} - Selected Minerals Comparison"
+            )
+            
             return fig
             
         except Exception as e:
             fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, f'Error generating plot:\n{str(e)}',
+            ax.text(0.5, 0.5, f'Error generating individual plot:\n{str(e)}',
                    ha='center', va='center', transform=ax.transAxes, fontsize=12, color='red')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
             return fig
-    
+
     @output
     @render.plot
     def band_plot():
@@ -334,209 +381,136 @@ def server(input, output, session):
         if not current_lib():
             fig, ax = plt.subplots(figsize=(12, 6))
             ax.text(0.5, 0.5, 'No band data available',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
+                   ha='center', va='center', transform=ax.transAxes, fontsize=14)
             return fig
-        
+
         try:
             lib_obj = current_lib()
             fig = lib_obj.plot_band_responses_detailed(figsize=(12, 6))
             current_band_plot.set(fig)
             return fig if fig else plt.figure(figsize=(12, 6))
-            
+
         except Exception as e:
             fig, ax = plt.subplots(figsize=(12, 6))
             ax.text(0.5, 0.5, f'Error generating band plot:\n{str(e)}',
                    ha='center', va='center', transform=ax.transAxes, fontsize=12, color='red')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
             return fig
-    
+
     @output
     @render.table
     def band_info_table():
         """Display band information table"""
         if not current_lib():
-            return pd.DataFrame({"Status": ["No data loaded"]})
+            return pd.DataFrame({"Message": ["No data loaded"]})
         
         try:
             lib_obj = current_lib()
             band_info = lib_obj.get_band_info()
-            
+
             if band_info is not None and not band_info.empty:
                 numerical_cols = band_info.select_dtypes(include=[np.number]).columns
                 band_info[numerical_cols] = band_info[numerical_cols].round(4)
                 return band_info
             else:
-                return pd.DataFrame({"Status": ["No band information available"]})
+                return pd.DataFrame({"Message": ["No band information available"]})
                 
         except Exception as e:
             return pd.DataFrame({"Error": [f"Error loading band info: {str(e)}"]})
-    
+
     @output
     @render.table
-    def selected_mineral_table():
-        """Display data for selected minerals"""
-        if not current_lib() or not input.mineral_family():
-            return pd.DataFrame({"Status": ["Select a mineral family to view data"]})
-        
-        try:
-            lib_obj = current_lib()
-            
-            # Get selected minerals or use family
-            if input.individual_mineral():
-                selected_keys = input.individual_mineral()
-            else:
-                selected_keys = get_filtered_minerals()
-            
-            if not selected_keys:
-                return pd.DataFrame({"Status": ["No minerals selected"]})
-            
-            # Create summary table
-            table_data = []
-            for key in selected_keys:
-                if key in lib_obj.spectra:
-                    metadata = lib_obj.spectra[key]['metadata']
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    
-                    table_data.append({
-                        'Sample_Key': key,
-                        'Material': metadata['material'],
-                        'Sample_ID': metadata['sample_id'],
-                        'Spectrometer': metadata['spectrometer'],
-                        'Purity': metadata['purity'],
-                        'Measurement_Type': metadata['measurement_type'],
-                        'Mean_Reflectance': np.nanmean(spectrum),
-                        'Std_Reflectance': np.nanstd(spectrum),
-                        'Min_Reflectance': np.nanmin(spectrum),
-                        'Max_Reflectance': np.nanmax(spectrum)
-                    })
-            
-            df = pd.DataFrame(table_data)
-            if not df.empty:
-                numerical_cols = df.select_dtypes(include=[np.number]).columns
-                df[numerical_cols] = df[numerical_cols].round(4)
-            
-            return df
-            
-        except Exception as e:
-            return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
-    
-    # Download handlers
-    @reactive.Effect
-    @reactive.event(input.download_band_table)
-    def download_band_table():
-        """Download band information table"""
+    def data_summary():
+        """Display data summary table"""
         if not current_lib():
-            download_message.set("No data available for download")
-            return
-        
-        try:
-            lib_obj = current_lib()
-            band_info = lib_obj.get_band_info()
-            
-            if band_info is not None and not band_info.empty:
-                filename = f"band_info_{input.satellite()}.csv"
-                band_info.to_csv(filename, index=False)
-                download_message.set(f"✅ Band information downloaded as {filename}")
-            else:
-                download_message.set("❌ No band information available")
-                
-        except Exception as e:
-            download_message.set(f"❌ Error downloading band table: {str(e)}")
-    
-    @reactive.Effect
-    @reactive.event(input.download_band_plot)
-    def download_band_plot():
-        """Download band plot"""
-        if not current_band_plot():
-            download_message.set("No band plot available for download")
-            return
-        
-        try:
-            fig = current_band_plot()
-            filename = f"band_plot_{input.satellite()}.png"
-            fig.savefig(filename, dpi=300, bbox_inches='tight')
-            download_message.set(f"✅ Band plot saved as {filename}")
-            
-        except Exception as e:
-            download_message.set(f"❌ Error saving band plot: {str(e)}")
-    
-    @reactive.Effect
-    @reactive.event(input.download_spectra_table)
-    def download_spectra_table():
-        """Download selected mineral data"""
-        if not current_lib() or not input.mineral_family():
-            download_message.set("No spectral data available for download")
-            return
+            return pd.DataFrame({"Message": ["No data loaded"]})
         
         try:
             lib_obj = current_lib()
             
-            # Get selected minerals
-            if input.individual_mineral():
-                selected_keys = input.individual_mineral()
-            else:
-                selected_keys = get_filtered_minerals()
+            # Create summary statistics
+            summary_data = []
+            mineral_counts = {}
             
-            if not selected_keys:
-                download_message.set("No minerals selected")
-                return
+            for key, data in lib_obj.spectra.items():
+                material = data['metadata']['material']
+                mineral_counts[material] = mineral_counts.get(material, 0) + 1
             
-            # Create detailed export data
+            for material, count in sorted(mineral_counts.items()):
+                summary_data.append({
+                    'Mineral': material,
+                    'Number_of_Samples': count,
+                    'Satellite': input.satellite()
+                })
+            
+            return pd.DataFrame(summary_data)
+            
+        except Exception as e:
+            return pd.DataFrame({"Error": [f"Error creating summary: {str(e)}"]})
+    
+    @output
+    @render.text
+    @reactive.event(input.download_csv)
+    def download_csv_handler():
+        """Handle CSV download"""
+        if not current_lib():
+            return "No data available for download"
+        
+        try:
+            lib_obj = current_lib()
+            
+            # Create a comprehensive dataset
             export_data = []
-            for key in selected_keys:
-                if key in lib_obj.spectra:
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    metadata = lib_obj.spectra[key]['metadata']
-                    
-                    for i, (wl, refl) in enumerate(zip(lib_obj.wavelengths, spectrum)):
-                        export_data.append({
-                            'Sample_Key': key,
-                            'Material': metadata['material'],
-                            'Sample_ID': metadata['sample_id'],
-                            'Spectrometer': metadata['spectrometer'],
-                            'Purity': metadata['purity'],
-                            'Measurement_Type': metadata['measurement_type'],
-                            'Wavelength_um': wl,
-                            'Band_Number': i + 1,
-                            'Reflectance_Value': refl
-                        })
+            
+            for key, data in lib_obj.spectra.items():
+                spectrum = data['spectrum']
+                metadata = data['metadata']
+                
+                base_record = {
+                    'Sample_Key': key,
+                    'Material': metadata['material'],
+                    'Sample_ID': metadata['sample_id'],
+                    'Spectrometer': metadata['spectrometer'],
+                    'Purity': metadata['purity'],
+                    'Measurement_Type': metadata['measurement_type'],
+                    'Satellite': metadata['satellite']
+                }
+                
+                # Add spectral values
+                for i, (wl, refl) in enumerate(zip(lib_obj.wavelengths, spectrum)):
+                    record = base_record.copy()
+                    record.update({
+                        'Wavelength_um': wl,
+                        'Band_Number': i + 1,
+                        'Reflectance_Value': refl
+                    })
+                    export_data.append(record)
             
             df = pd.DataFrame(export_data)
             filename = f"spectral_data_{input.satellite()}_{input.mineral_family()}.csv"
             df.to_csv(filename, index=False)
             
-            download_message.set(f"✅ Spectral data exported as {filename} ({len(df)} records)")
+            return f"Data exported to {filename} ({len(df)} records)"
             
         except Exception as e:
-            download_message.set(f"❌ Error exporting spectral data: {str(e)}")
-    
-    @reactive.Effect
-    @reactive.event(input.download_spectra_plot)
-    def download_spectra_plot():
-        """Download spectral plot"""
-        if not current_plot():
-            download_message.set("No spectral plot available for download")
-            return
-        
-        try:
-            fig = current_plot()
-            filename = f"spectral_plot_{input.satellite()}_{input.mineral_family()}.png"
-            fig.savefig(filename, dpi=300, bbox_inches='tight')
-            download_message.set(f"✅ Spectral plot saved as {filename}")
-            
-        except Exception as e:
-            download_message.set(f"❌ Error saving spectral plot: {str(e)}")
+            return f"Error exporting data: {str(e)}"
     
     @output
     @render.text
-    def download_status():
-        """Display download status"""
-        return download_message.get()
+    @reactive.event(input.download_plots)
+    def download_plots_handler():
+        """Handle plot download"""
+        if not current_plot():
+            return "No plot available for download"
+        
+        try:
+            fig = current_plot()
+            filename = f"usgs_spectral_plot_{input.satellite()}_{input.mineral_family()}.png"
+            fig.savefig(filename, dpi=300, bbox_inches='tight')
+            
+            return f"Plot saved as {filename}"
+            
+        except Exception as e:
+            return f"Error saving plot: {str(e)}"
 
 # Create the Shiny app
 app = App(app_ui, server)
