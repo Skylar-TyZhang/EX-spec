@@ -13,6 +13,7 @@ from spec_lib_ascii import USGSSatelliteSpectra
 # Improt the custom components
 from components.band_information import select_satellite
 from components.ui_tags_setup import ui_tags
+from components.header import get_header
 
 # Initialise the spectral library (you may want to make this configurable)
 BASE_DIR = "ASCIIdata"  # Update this path
@@ -60,13 +61,7 @@ app_ui = ui.page_fluid(
         {"class": "main-container"},
         
         # Header
-        ui.div(
-            {"class": "card"},
-            ui.h1("USGS Spectral Library Visualisation Tool", 
-                  style="color: #1976d2; text-align: center; margin-bottom: 10px;"),
-            ui.p("Interactive tool for exploring satellite sensor spectral data", 
-                 style="text-align: center; color: #666; margin: 0;")
-        ),
+        get_header(),
         
         # Control Panel
         ui.div(
