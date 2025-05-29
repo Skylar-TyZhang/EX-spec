@@ -116,6 +116,101 @@ app_ui = ui.page_fluid(
                 style="text-align: center; color: #666; margin: 0;",
             ),
         ),
+#----------------end of header----------------#
+    ui.navset_tab(
+        ui.nav_panel(
+            "Tab 1 place holder for band information",
+            ui.layout_sidebar(
+                ui.panel_sidebar({"class": "card control-card"},
+                ui.h3("Control Panel", style="margin-top: 0;"),
+                # Satellite Selection
+                ui.div(
+                    ui.h5("Satellite Sensor"),
+                    ui.input_select(
+                        "satellite",
+                        None,
+                        choices=["ASTER", "LSAT8", "SNTL2", "WV3"],
+                        selected=SATELLITE,
+                    ),
+                    ui.input_action_button(
+                        "load_data", "Load Data", class_="btn-primary btn-sm"
+                    ),
+                ),
+                
+                # Status Info
+                ui.output_ui("status_info"),
+            ),
+                ui.panel_main(
+                    {"class": "card"},
+                    # card for band information panels
+                    ui.navset_tab(
+                        # 
+                        
+                    )
+                    )
+                
+            )
+        ),
+        # end of nav panel 1
+        ui.nav_panel(
+            "Tab 2 place holder for Mineral Spectra",
+            ui.layout_sidebar(
+                ui.panel_sidebar({"class": "card control-card"},
+                ui.h3("Control Panel", style="margin-top: 0;"),
+                # Mineral Family Selection
+                ui.div(
+                    ui.h5("Mineral Family"),
+                    ui.input_select(
+                        "mineral_family",
+                        None,
+                        choices=(
+                            mineral_families if mineral_families else ["No data loaded"]
+                        ),
+                        selected=mineral_families[0] if mineral_families else None,
+                    ),
+                ),
+                # Individual Mineral Selection
+                ui.div(
+                    ui.h5("Individual Samples"),
+                    ui.input_select(
+                        "individual_mineral",
+                        None,
+                        choices=[],
+                        selected=None,
+                        multiple=True,
+                        size="4",
+                    ),
+                ),
+                # Options
+                ui.div(
+                    ui.h5("Display Options"),
+                    ui.input_slider(
+                        "max_samples", "Max Samples:", min=1, max=20, value=5, step=1
+                    ),
+                    ui.input_checkbox("show_band_centers", "Band Centers", value=True),
+                    ui.input_checkbox("show_band_ranges", "Band Ranges", value=True),
+                    ui.input_checkbox(
+                        "show_response_functions", "Response Functions", value=True
+                    ),
+                ),
+                # Status Info
+                ui.output_ui("status_info"),
+            
+                
+            ),
+                ui.panel_main(
+                    {"class": "card"},
+                    # card for band information panels
+                    ui.navset_tab(
+                        # 
+                        
+                    )
+                    )
+                
+            )
+        )
+        # end of nav panel 1
+    ),
         # Control Panel
         # Sidebar layout for control panel
         ui.layout_sidebar(
@@ -173,11 +268,14 @@ app_ui = ui.page_fluid(
                 ),
                 # Status Info
                 ui.output_ui("status_info"),
+            
             ),
-            width=3,
-        ),
-        # Main Content Tabs
-        ui.navset_tab(
+            
+            
+            ui.panel_main(
+                {"class": "card"},
+                #ui.h3("Main Content", style="margin-top: 0;"),
+                ui.navset_tab(
             # Band Information Tab
             ui.nav_panel(
                 "Band Information",
@@ -249,7 +347,16 @@ app_ui = ui.page_fluid(
                 ),
             ),
         ),
+    
+            )
+        ),
+        # Main Content Tabs
+        
+        
+    #end of div
     ),
+    
+    # end of tab
     # Download Status
     ui.div(
         {"class": "card"}, ui.h5("Download Status"), ui.output_text("download_status")
