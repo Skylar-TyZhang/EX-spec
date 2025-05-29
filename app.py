@@ -91,11 +91,11 @@ app_ui = ui.page_fluid(
         ),
         
         # Main Content Tabs
-        ui.navset_tab(
+        ui.navset_tab(            
+            # Spectral Data Tab
+            get_spectral_data_tab(),
             # Band Information Tab
             get_band_info_tab(),
-            # Spectral Data Tab
-            get_spectral_data_tab()
         ),
         
         # Download Status
@@ -132,7 +132,7 @@ def server(input, output, session):
         ui.update_select(
             "individual_mineral",
             choices=choices,
-            selected=choices[:min(3, len(choices))] if choices else []
+            selected=choices[:min(5, len(choices))] if choices else []
         )
     
     @reactive.Effect
@@ -204,10 +204,13 @@ def server(input, output, session):
             
             # Use individual selection if available, otherwise use family
             if input.individual_mineral():
-                fig = lib_obj.compare_spectra(
+                fig = lib_obj.compare_spectra_with_bands(
                     input.individual_mineral(),
                     figsize=(12, 6),
-                    title=f"{input.satellite()} - Selected Minerals"
+                    title=f"{input.satellite()} - Selected Minerals {len(input.individual_mineral())}",
+                    show_response_functions=input.show_response_functions(),
+                    show_band_centers=input.show_band_centers(),
+                    show_band_ranges=input.show_band_ranges()
                 )
             else:
                 fig = lib_obj.plot_spectrum_with_bands(
@@ -308,7 +311,7 @@ def server(input, output, session):
                     table_data.append({
                         'Sample_Key': key,
                         'Material': metadata['material'],
-                        'Sample_ID': metadata['sample_id'],
+                        #'Sample_ID': metadata['sample_id'],
                         'Spectrometer': metadata['spectrometer'],
                         'Purity': metadata['purity'],
                         'Measurement_Type': metadata['measurement_type'],
@@ -324,7 +327,6 @@ def server(input, output, session):
                 df[numerical_cols] = df[numerical_cols].round(4)
             
             return df
-            
         except Exception as e:
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
     

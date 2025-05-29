@@ -459,6 +459,117 @@ class USGSSatelliteSpectra:
         
         plt.tight_layout()
         return fig  
+    
+    def compare_spectra_with_bands(self, keys, figsize=(12, 8), show_response_functions=True, 
+                                show_band_centers=True, show_band_ranges=True, title = None):
+        """
+        Compare multiple spectra on a single plot
+        
+        Parameters:
+        -----------
+        keys : list
+            List of spectrum keys to compare
+        figsize : tuple
+            Figure size
+        title : str
+            Plot title (optional)
+            
+        Returns:
+        --------
+        matplotlib.figure.Figure
+            The figure object
+        """
+        # Create figure with subplots for bands and response functions
+        if show_response_functions and self.bands:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, height_ratios=[3, 1])
+        else:
+            fig, ax1 = plt.subplots(figsize=figsize)
+            ax2 = None
+            
+        for key in keys:
+            if key in self.spectra:
+                # get the spectrum and metadata
+                spectrum = self.spectra[key]['spectrum']
+                metadata = self.spectra[key]['metadata']
+                
+                # Plot the spectrum
+                ax1.plot(self.wavelengths, spectrum, 'o-', label=f"{metadata['material']} {metadata['sample_id']}")
+        
+        # Add band information if available
+        if self.bands and self.wavelengths is not None:
+            # Sort bands by band number
+            sorted_bands = sorted(self.bands.items())
+            # Create colormap for bands
+            colors = plt.cm.Set3(np.linspace(0, 1, len(sorted_bands)))
+               
+            for i, (band_num, band_info) in enumerate(sorted_bands):
+                # Extract the band number for index
+                band_num = ''.join([char for char in band_num if char.isdigit()])
+                band_num = int(band_num)
+        
+                color = colors[i]
+                band_center = self.wavelengths[band_num - 1] if band_num <= len(self.wavelengths) else None
+                
+                # Show band center as vertical line
+                if show_band_centers and band_center is not None:
+                    ax1.axvline(x=band_center, color=color, linestyle='--', alpha=0.8, linewidth=1.5)
+                
+                # Show band range as shaded region (using bandpass if available)
+                if show_band_ranges and band_center is not None:
+                    if self.bandpass_micron is not None and band_num <= len(self.bandpass_micron):
+                        bandpass = self.bandpass_micron[band_num - 1]
+                        band_min = band_center - bandpass / 2
+                        band_max = band_center + bandpass / 2
+                        
+                        ax1.axvspan(band_min, band_max, alpha=0.2, color=color)
+        # Set labels for main plot
+        ax1.set_xlabel('Wavelength (μm)')
+        if metadata['measurement_type'] == 'AREF':
+            ax1.set_ylabel('Absolute Reflectance')
+        elif metadata['measurement_type'] == 'RREF':
+            ax1.set_ylabel('Relative Reflectance')
+        elif metadata['measurement_type'] == 'TRAN':
+            ax1.set_ylabel('Transmission')
+        else:
+            ax1.set_ylabel('Value')
+        
+        ax1.set_title(f"{metadata['material']} - {self.satellite}")
+        ax1.grid(True, linestyle='--', alpha=0.3)
+        ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        
+        # Plot band response functions if requested and available
+        if show_response_functions and ax2 is not None and self.bands and self.wavelengths_hp is not None:
+            
+            # Plot each band response function
+            sorted_bands = sorted(self.bands.items())
+            colors = plt.cm.Set3(np.linspace(0, 1, len(sorted_bands)))
+            
+            for i, (band_num, band_info) in enumerate(sorted_bands):
+                color = colors[i]
+                response = band_info['response']
+                wavelengths_band = band_info['wavelengths']
+                
+                # Ensure wavelengths and response have same length
+                min_len = min(len(wavelengths_band), len(response))
+                wavelengths_band = wavelengths_band[:min_len]
+                response = response[:min_len]
+                
+                # Plot the response function
+                ax2.fill_between(wavelengths_band, 0, response, alpha=0.6, color=color, 
+                               label=f"{band_info['band_name']}")
+                ax2.plot(wavelengths_band, response, color=color, linewidth=1)
+            
+            ax2.set_xlabel('Wavelength (μm)')
+            ax2.set_ylabel('Response')
+            ax2.set_title(f'{self.satellite} Band Response Functions')
+            ax2.grid(True, linestyle='--', alpha=0.3)
+            ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            
+            # Match x-axis limits
+            ax2.set_xlim(ax1.get_xlim())
+        
+        plt.tight_layout()
+        return fig
       
     def plot_spectrum_with_bands(self, mineral_family, figsize=(14, 8), show_response_functions=True, 
                                 show_band_centers=True, show_band_ranges=True):
@@ -467,8 +578,8 @@ class USGSSatelliteSpectra:
         
         Parameters:
         -----------
-        spectrum_key : str
-            Key of the spectrum to plot
+        mineral family : str
+            Selected mineral family to plot
         figsize : tuple
             Figure size
         show_response_functions : bool
