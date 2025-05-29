@@ -14,6 +14,7 @@ from spec_lib_ascii import USGSSatelliteSpectra
 from components.band_information import select_satellite
 from components.ui_tags_setup import ui_tags
 from components.header import get_header
+from components.control_panel import get_satellite_selection, get_mineral_family_selection, get_individual_mineral_selection, get_display_options
 
 # Initialise the spectral library (you may want to make this configurable)
 BASE_DIR = "ASCIIdata"  # Update this path
@@ -67,56 +68,19 @@ app_ui = ui.page_fluid(
         ui.div(
             {"class": "card control-card"},
             ui.h3("Control Panel", style="margin-top: 0;"),
-            
+            # change the layout if necessary
             ui.layout_columns(
                 # Satellite Selection
-                ui.div(
-                    ui.h5("Satellite Sensor"),
-                    ui.input_select(
-                        "satellite",
-                        None,
-                        choices=["ASTER", "LSAT8", "SNTL2", "WV3"],
-                        selected=SATELLITE
-                    ),
-                    ui.input_action_button("load_data", "Load Data", class_="btn-primary btn-sm")
-                ),
+                get_satellite_selection(SATELLITE),
                 
                 # Mineral Family Selection
-                ui.div(
-                    ui.h5("Mineral Family"),
-                    ui.input_select(
-                        "mineral_family",
-                        None,
-                        choices=mineral_families if mineral_families else ["No data loaded"],
-                        selected=mineral_families[0] if mineral_families else None
-                    )
-                ),
+                get_mineral_family_selection(mineral_families),
                 
                 # Individual Mineral Selection
-                ui.div(
-                    ui.h5("Individual Samples"),
-                    ui.input_select(
-                        "individual_mineral",
-                        None,
-                        choices=[],
-                        selected=None,
-                        multiple=True,
-                        size="4"
-                    )
-                ),
+                get_individual_mineral_selection(),
                 
-                # Options
-                ui.div(
-                    ui.h5("Display Options"),
-                    ui.input_slider(
-                        "max_samples",
-                        "Max Samples:",
-                        min=1, max=20, value=5, step=1
-                    ),
-                    ui.input_checkbox("show_band_centers", "Band Centers", value=True),
-                    ui.input_checkbox("show_band_ranges", "Band Ranges", value=True),
-                    ui.input_checkbox("show_response_functions", "Response Functions", value=True)
-                ),
+                # Display options
+                get_display_options(),
                 
                 col_widths=[3, 3, 3, 3]
             ),
