@@ -12,6 +12,7 @@ from spec_lib_ascii import USGSSatelliteSpectra
 
 # Improt the custom components
 from components.band_info_tab import get_band_info_tab
+from components.spectra_data import get_spectral_data_tab
 from components.ui_tags_setup import ui_tags
 from components.header import get_header
 from components.control_panel import get_satellite_selection, get_mineral_family_selection, get_individual_mineral_selection, get_display_options
@@ -94,36 +95,7 @@ app_ui = ui.page_fluid(
             # Band Information Tab
             get_band_info_tab(),
             # Spectral Data Tab
-            ui.nav_panel(
-                "Spectral Data",
-                ui.div(
-                    {"class": "tab-content"},
-                    
-                    # Spectral Plot Card
-                    ui.div(
-                        {"class": "card plot-card"},
-                        ui.div(
-                            ui.h4("Spectral Visualization", style="margin-top: 0;"),
-                            ui.div(
-                                ui.input_action_button("download_spectra_table", "Download Data", 
-                                                     class_="btn-success download-btn btn-sm"),
-                                ui.input_action_button("download_spectra_plot", "Download Plot", 
-                                                     class_="btn-info download-btn btn-sm"),
-                                style="float: right;"
-                            ),
-                            style="overflow: auto;"
-                        ),
-                        ui.output_plot("main_plot", height="500px")
-                    ),
-                    
-                    # Data Table Card
-                    ui.div(
-                        {"class": "card"},
-                        ui.h4("Selected Mineral Data", style="margin-top: 0;"),
-                        ui.output_table("selected_mineral_table")
-                    )
-                )
-            )
+            get_spectral_data_tab()
         ),
         
         # Download Status
