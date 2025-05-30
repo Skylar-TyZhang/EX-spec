@@ -16,7 +16,7 @@ def _get_spectral_plot_card():
     return ui.div(
         {"class": "card plot-card"},
         ui.div(
-            ui.h4("Spectral Visualization", style="margin-top: 0;"),
+            ui.h4("Spectral Visualisation", style="margin-top: 0;"),
             ui.div(
                 ui.input_action_button("download_spectra_plot", "Download Plot", 
                                      class_="btn-info download-btn btn-sm"),
@@ -24,7 +24,7 @@ def _get_spectral_plot_card():
             ),
             style="overflow: auto;"
         ),
-        ui.output_plot("main_plot", height="500px")
+        ui.output_plot("main_plot", height="700px")
     )
 
 def _get_data_table_card():

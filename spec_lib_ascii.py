@@ -492,7 +492,7 @@ class USGSSatelliteSpectra:
         plt.tight_layout()
         return fig  
     
-    def compare_spectra_with_bands(self, keys, figsize=(12, 8), show_response_functions=True, 
+    def compare_spectra_with_bands(self, keys, figsize=(12, 10), show_response_functions=True, 
                                 show_band_centers=True, show_band_ranges=True, title = None):
         """
         Compare multiple spectra on a single plot
@@ -600,7 +600,7 @@ class USGSSatelliteSpectra:
             # Match x-axis limits
             ax2.set_xlim(ax1.get_xlim())
         
-        plt.tight_layout()
+        # plt.tight_layout()
         return fig
       
     def plot_spectrum_with_bands(self, mineral_family, figsize=(14, 8), show_response_functions=True, 

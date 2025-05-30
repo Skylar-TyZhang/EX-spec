@@ -29,7 +29,7 @@ def get_satellite_selection(default_satellite):
             choices=["ASTER", "Landsat8", "Sentinel2", "WorldView3"],
             selected=default_satellite
         ),
-        ui.input_action_button("load_data", "Load Data", class_="btn-primary btn-sm")
+        #ui.input_action_button("load_data", "Load Data", class_="btn-primary btn-sm")
     )
 
 def get_mineral_family_selection(mineral_families):

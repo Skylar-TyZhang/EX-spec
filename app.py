@@ -136,7 +136,7 @@ def server(input, output, session):
         )
     
     @reactive.Effect
-    @reactive.event(input.load_data)
+    #@reactive.event(input.load_data)
     def load_satellite_data():
         """Load data for the selected satellite"""
         try:
