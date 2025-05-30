@@ -176,3 +176,5 @@ cython_debug/
 # ASCII files
 ASCIIdata/
 *.png
+aster_minerals.csv
+spec_lib.ipynb
