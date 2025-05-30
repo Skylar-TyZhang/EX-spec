@@ -262,7 +262,7 @@ def server(input, output, session):
             return fig
     
     @output
-    @render.table
+    @render.data_frame
     def band_info_table():
         """Display band information table"""
         if not current_lib():
@@ -283,7 +283,7 @@ def server(input, output, session):
             return pd.DataFrame({"Error": [f"Error loading band info: {str(e)}"]})
     
     @output
-    @render.table
+    @render.data_frame
     def selected_mineral_table():
         """Display data for selected minerals"""
         if not current_lib() or not input.mineral_family():
