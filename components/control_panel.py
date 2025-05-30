@@ -26,7 +26,7 @@ def get_satellite_selection(default_satellite):
         ui.input_select(
             "satellite",
             None,
-            choices=["ASTER", "LSAT8", "SNTL2", "WV3"],
+            choices=["ASTER", "Landsat8", "Sentinel2", "WorldView3"],
             selected=default_satellite
         ),
         ui.input_action_button("load_data", "Load Data", class_="btn-primary btn-sm")

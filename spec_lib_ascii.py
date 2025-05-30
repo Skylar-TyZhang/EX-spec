@@ -18,9 +18,17 @@ class USGSSatelliteSpectra:
         satellite : str
             Satellite sensor name (e.g., 'ASTER', 'LSAT8', 'SNTL2', 'WV3')
         """
+        
+        satellite_mapping = {
+            'ASTER':'ASTER', 
+            'Landsat8':'LSAT8', 
+            'Sentinel2':'SNTL2',
+            'WorldView3':'WV3'
+        }
+        
         self.base_dir = Path(base_dir)
         self.satellite = satellite
-        self.prefix = f"S07{satellite}_"
+        self.prefix = f"S07{satellite_mapping[satellite]}_"
         
         # Find the appropriate data directory
         self.data_dir = list(self.base_dir.glob(f"**/ASCIIdata_splib07b_rs{satellite}"))[0]
