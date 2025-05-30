@@ -5,7 +5,10 @@ def get_band_info_tab():
     """Return the band information tab component"""
     return ui.nav_panel(
         "Band Information",
-        ui.div({"class": "tab-content"}, _get_band_info_card(), _get_band_plot_card()),
+        ui.div({"class": "tab-content"},
+               _get_band_info_card(), 
+               #_get_band_plot_card()
+               ),
     )
 
 
