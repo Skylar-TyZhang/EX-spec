@@ -595,7 +595,7 @@ class USGSSatelliteSpectra:
             ax2.set_ylabel('Response')
             ax2.set_title(f'{self.satellite} Band Response Functions')
             ax2.grid(True, linestyle='--', alpha=0.3)
-            ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', ncol=2)
             
             # Match x-axis limits
             ax2.set_xlim(ax1.get_xlim())
