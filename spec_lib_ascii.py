@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import re
 import glob
+import pickle
 
 class USGSSatelliteSpectra:
     def __init__(self, base_dir, satellite='ASTER'):
@@ -238,6 +239,29 @@ class USGSSatelliteSpectra:
         # print(f"Successfully loaded {len(self.spectra)} mineral spectra")
         return self.spectra
     
+    def load_minerals_pickle(self, max_samples=None):
+        """
+        Load mineral spectra from pre-saved pickle files
+        
+        Parameters:
+        -----------
+        max_samples : int or None
+            Maximum number of samples to load (None for all)
+            
+        Returns:
+        --------
+        dict
+            Dictionary of loaded mineral spectra
+        """
+        try:
+            with open(f'pickle_data/spec_lib_{self.satellite}' + '.pkl', 'rb') as f:
+                self.spectra = pickle.load(f)    
+            return self.spectra  
+                
+        except Exception as e:
+            print(f"Error loading spectrum: {str(e)}")
+        
+        
     def get_band_info(self):
         """
         Get summary information about loaded bands

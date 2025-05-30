@@ -32,7 +32,7 @@ def Initialise_library():
     
     try:
         lib = USGSSatelliteSpectra(BASE_DIR, SATELLITE)
-        lib.load_minerals()
+        lib.load_minerals_pickle()
         
         # Extract unique mineral families and all minerals
         all_minerals = list(lib.spectra.keys())
@@ -141,7 +141,7 @@ def server(input, output, session):
         """Load data for the selected satellite"""
         try:
             new_lib = USGSSatelliteSpectra(BASE_DIR, input.satellite())
-            new_lib.load_minerals()
+            new_lib.load_minerals_pickle()
             current_lib.set(new_lib)
             
             # Update mineral family choices

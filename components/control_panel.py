@@ -41,7 +41,8 @@ def get_mineral_family_selection(mineral_families):
             None,
             choices=mineral_families if mineral_families else ["No data loaded"],
             selected=mineral_families[0] if mineral_families else None
-        )
+        ),
+        #ui.input_action_button("mineral_viz", "Visualise Mineral Spectra", class_="btn-primary btn-sm")
     )
 
 def get_individual_mineral_selection():
