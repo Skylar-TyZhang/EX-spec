@@ -13,8 +13,8 @@ usgs_spectral_app/
 │   ├── spectral_loader.py     # Modified USGS spectral library class
 │   ├── data_processing.py     # Data processing utilities
 │   └── plotting.py           # Plotting utilities
-├── data/
-│   └── cache/                # Cached data files
+├── pickle_data/
+│   └── .pkl                # Cached pickle data files
 ├── logs/
 │   └── app.log              # Application logs
 └── tests/
@@ -30,13 +30,11 @@ usgs_spectral_app/
 - Directory selection for USGS Spectral Library
 - Satellite sensor selection (ASTER, LSAT8, SNTL2, WV3)
 - Progress indicators for data loading
-- Cache management
 
 ### 2. **Spectral Analysis Dashboard**
 
 - Interactive mineral family selection
-- Spectrum visualisation  with band overlays
-- Comparative analysis tools
+- Spectrum visualisation with band overlays
 - Band response function plots
 
 ### 3. **Export and Reporting**
@@ -66,7 +64,7 @@ Main Shiny application with UI and server logic, including:
 ### `modules/spectral_loader.py`
 
 Enhanced version of your USGSSatelliteSpectra class with:
-- Caching mechanisms
+
 - Progress reporting
 - Error handling improvements
 - Shiny-specific optimizations
