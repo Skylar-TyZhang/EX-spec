@@ -1,0 +1,17 @@
+S07WV3 Record=7402:  error bars to preceding                
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN

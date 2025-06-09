@@ -1,0 +1,10 @@
+S07ASTER Record=7320:  error bars to preceding                
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN

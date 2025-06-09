@@ -1,0 +1,14 @@
+S07SNTL2 Record=7556:  error bars to preceding                
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN

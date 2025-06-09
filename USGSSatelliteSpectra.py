@@ -297,7 +297,7 @@ class USGSSatelliteSpectra:
             
             ax.set_title(f"Band {band_num}: {band_info['band_name']}\n"
                         f"Peak: {peak_wavelength:.3f} μm\n"
-                        f"FWHM: {fwhm:.3f} μm")
+                        f"FWHM: {fwhm:.3f} μm",fontsize=6)
             ax.set_xlabel('Wavelength (μm)')
             ax.set_ylabel('Response')
             ax.grid(True, linestyle='--', alpha=0.3)
@@ -314,7 +314,7 @@ class USGSSatelliteSpectra:
             axes[i].set_visible(False)
         
         plt.tight_layout()
-        plt.suptitle(f'{self.satellite} Band Response Functions Detail', fontsize=16, y=1.02)
+        plt.suptitle(f'{self.satellite} Band Response Functions Detail', fontsize=10, y=1)
         
         return fig
 

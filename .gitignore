@@ -173,8 +173,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# ASCII files
-ASCIIdata/
+
 *.png
 aster_minerals.csv
 spec_lib.ipynb

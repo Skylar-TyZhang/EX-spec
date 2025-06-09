@@ -1,0 +1,8 @@
+S07LSAT8 Record=6739:  error bars to preceding                
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN
+           -NaN

@@ -18,7 +18,7 @@ from components.ui_tags_setup import ui_tags
 from components.header import get_header
 
 # Configuration
-BASE_DIR = "E:/OneDrive - SRK Consulting/Projects/R&D/Spectral Data for minerals/usgs_splib07/ASCIIdata"
+BASE_DIR = "ASCIIdata"
 DEFAULT_SATELLITE = "ASTER"
 DEFAULT_COLLECTION = "b"
 DEFAULT_SPECTROMETER = "BECK"
