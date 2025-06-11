@@ -103,11 +103,6 @@ def _get_full_spectrum_plot_card():
     """Full spectrum visualisation plot card"""
     return ui.div(
         {"class": "card plot-card"},
-        ui.div(
-            ui.h4("Full Spectrum visualisation", style="margin-top: 0;"),
-            
-            style="overflow: auto;"
-        ),
         ui.output_ui("full_spectrum_main_plot", height="700px")
     )
 

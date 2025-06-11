@@ -11,13 +11,15 @@ import base64
 # Import the USGS Spectra classes
 from USGSSatelliteSpectra import USGSSatelliteSpectra
 from USGSSpectra import USGSSpectra
+
+# Import the Plotly visualiser
 from USGSPlotly import PlotlyUSGSVisualiser
+
 # Import the custom components
 from components.satellite_tab import get_satellite_tab
 from components.full_spectrum_tab import get_full_spectrum_tab
 from components.ui_tags_setup import ui_tags
 from components.header import get_header
-#from components.comparison_tab import _get_comparison_tab
 
 # Configuration
 BASE_DIR = "ASCIIdata"
@@ -205,7 +207,7 @@ def server(input, output, session):
                 )
             
             # Create interactive Plotly figure
-            fig = plotly_visualiser.plot_satellite_spectra_with_bands(
+            fig = plotly_visualiser.create_satellite_spectra_plot(
                 lib_obj,
                 selected_minerals,
                 show_band_centers=input.satellite_show_band_centers(),
@@ -407,7 +409,7 @@ def server(input, output, session):
                 )
             
             # Create interactive Plotly figure
-            fig = plotly_visualiser.plot_full_spectrum_data(
+            fig = plotly_visualiser.create_full_spectrum_plot(
                 lib_obj,
                 selected_minerals,
                 wavelength_range=tuple(input.wavelength_range()),

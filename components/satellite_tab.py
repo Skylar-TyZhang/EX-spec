@@ -103,11 +103,7 @@ def _get_satellite_spectral_plot_card():
     """Satellite spectral visualisation plot card"""
     return ui.div(
         {"class": "card plot-card"},
-        ui.div(
-            ui.h4("Satellite Spectral visualisation", style="margin-top: 0;"),
-            
-            style="overflow: auto;"
-        ),
+        
         ui.output_ui("satellite_main_plot", height="700px")
     )
 
