@@ -129,7 +129,7 @@ class PlotlyUSGSVisualiser:
                         line=dict(color=color, width=2, dash="dash"),
                         opacity=0.7,
                         annotation_text=f"Band {band_num}",
-                        annotation_font=dict(color=color, size=8),
+                        annotation_font=dict(color=color, size=6),
                         annotation_position="top",
                         row=main_row, col=1
                     )
