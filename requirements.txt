@@ -30,7 +30,7 @@ psutil>=5.8.0
 
 # Optional: For enhanced plotting capabilities
 # seaborn>=0.11.0
-# plotly>=5.0.0
+plotly>=5.0.0
 
 # Web framework dependencies (automatically installed with shiny)
 # starlette

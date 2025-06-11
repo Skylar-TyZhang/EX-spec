@@ -112,7 +112,7 @@ def _get_full_spectrum_plot_card():
             ),
             style="overflow: auto;"
         ),
-        ui.output_plot("full_spectrum_main_plot", height="700px")
+        ui.output_ui("full_spectrum_main_plot", height="700px")
     )
 
 def _get_full_spectrum_data_table_card():

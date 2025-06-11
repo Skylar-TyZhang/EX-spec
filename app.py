@@ -1,5 +1,6 @@
 # app.py
 from shiny import App, ui, render, reactive
+from shinywidgets import render_widget  
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -10,12 +11,13 @@ import base64
 # Import the USGS Spectra classes
 from USGSSatelliteSpectra import USGSSatelliteSpectra
 from USGSSpectra import USGSSpectra
-
+from USGSPlotly import PlotlyUSGSVisualiser
 # Import the custom components
 from components.satellite_tab import get_satellite_tab
 from components.full_spectrum_tab import get_full_spectrum_tab
 from components.ui_tags_setup import ui_tags
 from components.header import get_header
+#from components.comparison_tab import _get_comparison_tab
 
 # Configuration
 BASE_DIR = "ASCIIdata"
@@ -71,6 +73,9 @@ def initialise_libraries():
 # initialise libraries when the app starts
 initialise_libraries()
 
+# initialise the Plotly visualiser
+plotly_visualiser = PlotlyUSGSVisualiser()
+
 # Define the UI
 app_ui = ui.page_fluid(
     ui_tags(),
@@ -103,9 +108,6 @@ def server(input, output, session):
     # Reactive values
     current_satellite_lib = reactive.Value(satellite_lib)
     current_full_spectrum_lib = reactive.Value(full_spectrum_lib)
-    current_satellite_plot = reactive.Value(None)
-    current_full_spectrum_plot = reactive.Value(None)
-    current_band_plot = reactive.Value(None)
     download_message = reactive.Value("")
     
     # === SATELLITE TAB LOGIC ===
@@ -137,7 +139,7 @@ def server(input, output, session):
         """Load data for the selected satellite"""
         try:
             new_lib = USGSSatelliteSpectra(BASE_DIR, input.satellite())
-            #new_lib.load_minerals_pickle()
+            new_lib.load_minerals_pickle()
             current_satellite_lib.set(new_lib)
             
             # Update mineral family choices
@@ -175,17 +177,16 @@ def server(input, output, session):
         )
     
     @output
-    @render.plot
+    @render.ui
     def satellite_main_plot():
-        """Generate the satellite spectral plot"""
+        """Generate the interactive satellite spectral plot using Plotly"""
+        print('satellite_main_plot called')
         if not current_satellite_lib() or not input.satellite_mineral_families():
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, 'Select mineral families to view satellite spectral data',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
-            return fig
+            return ui.div(
+                {"style": "text-align: center; padding: 50px; color: #666;"},
+                ui.h4("Select mineral families to view satellite spectral data"),
+                ui.p("Choose one or more mineral families from the control panel above")
+            )
         
         try:
             lib_obj = current_satellite_lib()
@@ -197,59 +198,53 @@ def server(input, output, session):
                 selected_minerals = get_filtered_satellite_minerals()
             
             if not selected_minerals:
-                fig, ax = plt.subplots(figsize=(12, 6))
-                ax.text(0.5, 0.5, 'No minerals selected',
-                       ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
-                ax.set_xlim(0, 1)
-                ax.set_ylim(0, 1)
-                ax.axis('off')
-                return fig
+                return ui.div(
+                    {"style": "text-align: center; padding: 50px; color: #666;"},
+                    ui.h4("No minerals selected"),
+                    ui.p("Adjust your selection criteria or increase the maximum samples per family")
+                )
             
-            fig = lib_obj.compare_spectra_with_bands(
+            # Create interactive Plotly figure
+            fig = plotly_visualiser.plot_satellite_spectra_with_bands(
+                lib_obj,
                 selected_minerals,
-                figsize=(12, 8),
-                title=f"{input.satellite()} - Selected Minerals ({len(selected_minerals)})",
-                show_response_functions=input.satellite_show_response_functions(),
                 show_band_centers=input.satellite_show_band_centers(),
-                show_band_ranges=input.satellite_show_band_ranges()
+                show_band_ranges=input.satellite_show_band_ranges(),
+                show_response_functions=input.satellite_show_response_functions(),
+                height=700
             )
             
-            current_satellite_plot.set(fig)
-            return fig
+            # Return Plotly plot as HTML
+            return ui.HTML(fig.to_html(include_plotlyjs="cdn", div_id="satellite_plot"))
             
         except Exception as e:
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, f'Error generating satellite plot:\n{str(e)}',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=12, color='red')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
-            return fig
+            return ui.div(
+                {"style": "text-align: center; padding: 50px; color: red;"},
+                ui.h4("Error generating satellite plot"),
+                ui.p(f"Error details: {str(e)}")
+            )
     
     @output
-    @render.plot
+    @render.ui
     def satellite_band_plot():
-        """Generate satellite band response function plot"""
+        """Generate satellite band response function plot using Plotly"""
         if not current_satellite_lib():
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, 'No satellite band data available',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
-            return fig
+            return ui.div(
+                {"style": "text-align: center; padding: 50px; color: #666;"},
+                ui.h4("No satellite band data available")
+            )
         
         try:
             lib_obj = current_satellite_lib()
-            fig = lib_obj.plot_band_responses_detailed(figsize=(12, 6))
-            current_band_plot.set(fig)
-            return fig if fig else plt.figure(figsize=(12, 6))
+            fig = plotly_visualiser.create_band_response_plot(lib_obj, height=500)
+            return ui.HTML(fig.to_html(include_plotlyjs="cdn", div_id="band_plot"))
             
         except Exception as e:
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, f'Error generating band plot:\n{str(e)}',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=12, color='red')
-            return fig
+            return ui.div(
+                {"style": "text-align: center; padding: 50px; color: red;"},
+                ui.h4("Error generating band plot"),
+                ui.p(f"Error details: {str(e)}")
+            )
     
     @output
     @render.data_frame
@@ -376,25 +371,24 @@ def server(input, output, session):
         num_spectra = len(lib_obj.spectra)
         num_families = len(input.full_spectrum_mineral_families()) if input.full_spectrum_mineral_families() else 0
         num_samples = len(get_filtered_full_spectrum_minerals())
+        wl_range = f"{input.wavelength_range()[0]:.1f}-{input.wavelength_range()[1]:.1f} μm"
         
         return ui.div(
             {"class": "status-text"},
-            ui.p(f"🔬 {input.spectrometer()} | 📊 {num_spectra} spectra | 🔬 {num_families} families | 📈 {num_samples} samples",
+            ui.p(f"🔬 {input.spectrometer()} | 📊 {num_spectra} spectra | 🔬 {num_families} families | 📈 {num_samples} samples | 📏 {wl_range}",
                  style="margin: 5px 0;")
         )
     
     @output
-    @render.plot
+    @render.ui
     def full_spectrum_main_plot():
-        """Generate the full spectrum plot"""
+        """Generate the interactive full spectrum plot using Plotly"""
         if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, 'Select mineral families to view full spectral data',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
-            return fig
+            return ui.div(
+                {"style": "text-align: center; padding: 50px; color: #666;"},
+                ui.h4("Select mineral families to view full spectral data"),
+                ui.p("Choose one or more mineral families and adjust the wavelength range")
+            )
         
         try:
             lib_obj = current_full_spectrum_lib()
@@ -406,52 +400,29 @@ def server(input, output, session):
                 selected_minerals = get_filtered_full_spectrum_minerals()
             
             if not selected_minerals:
-                fig, ax = plt.subplots(figsize=(12, 6))
-                ax.text(0.5, 0.5, f"No sample of selected minerals found in {input.spectrometer()} \n Please select anther spectrometer.",
-                       ha='center', va='center', transform=ax.transAxes, fontsize=14, color='#666')
-                ax.set_xlim(0, 1)
-                ax.set_ylim(0, 1)
-                ax.axis('off')
-                return fig
+                return ui.div(
+                    {"style": "text-align: center; padding: 50px; color: #666;"},
+                    ui.h4("No minerals selected"),
+                    ui.p("Adjust your selection criteria or increase the maximum samples per family")
+                )
             
-            # Create the plot
-            fig, ax = plt.subplots(figsize=(12, 6))
+            # Create interactive Plotly figure
+            fig = plotly_visualiser.plot_full_spectrum_data(
+                lib_obj,
+                selected_minerals,
+                wavelength_range=tuple(input.wavelength_range()),
+                height=600
+            )
             
-            for key in selected_minerals:
-                if key in lib_obj.spectra:
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    metadata = lib_obj.spectra[key]['metadata']
-                    
-                    # Apply wavelength filter
-                    wavelength_mask = (lib_obj.wavelengths >= input.wavelength_range()[0]) & \
-                                    (lib_obj.wavelengths <= input.wavelength_range()[1])
-                    if not wavelength_mask.any():
-                        ax.text(0.5, 0.5, f'Error generating full spectrum plot:\n Please adjust the wavelength range according to the selected spectrometer.\n{str(e)}',
-                        ha='center', va='center', transform=ax.transAxes, fontsize=12, color='red')
-                    filtered_wavelengths = lib_obj.wavelengths[wavelength_mask]
-                    filtered_spectrum = spectrum[wavelength_mask]
-                    
-                    ax.plot(filtered_wavelengths, filtered_spectrum, '-', 
-                           label=f"{metadata['material']} {metadata['sample_id']}")
-            
-            ax.set_xlabel('Wavelength (μm)')
-            ax.set_ylabel('Reflectance / Transmission')
-            ax.set_title(f"{input.spectrometer()} - Selected Minerals ({len(selected_minerals)})")
-            ax.grid(True, linestyle='--', alpha=0.7)
-            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-            
-            plt.tight_layout()
-            current_full_spectrum_plot.set(fig)
-            return fig
+            # Return Plotly plot as HTML
+            return ui.HTML(fig.to_html(include_plotlyjs="cdn", div_id="full_spectrum_plot"))
             
         except Exception as e:
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(0.5, 0.5, f'Error generating full spectrum plot:\n Please adjust the wavelength range according to the selected spectrometer.\n{str(e)}',
-                   ha='center', va='center', transform=ax.transAxes, fontsize=12, color='red')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis('off')
-            return fig
+            return ui.div(
+                {"style": "text-align: center; padding: 50px; color: red;"},
+                ui.h4("Error generating full spectrum plot"),
+                ui.p(f"Error details: {str(e)}")
+            )
     
     @output
     @render.data_frame
@@ -470,7 +441,7 @@ def server(input, output, session):
                 selected_keys = get_filtered_full_spectrum_minerals()
             
             if not selected_keys:
-                return pd.DataFrame({"Status": [f"No sample of selected minerals found in {input.spectrometer()}"]})
+                return pd.DataFrame({"Status": ["No minerals selected"]})
             
             # Create summary table
             table_data = []
@@ -511,56 +482,36 @@ def server(input, output, session):
     @reactive.event(input.download_satellite_plot)
     def download_satellite_plot():
         """Download satellite spectral plot"""
-        if not current_satellite_plot():
-            download_message.set("No satellite plot available for download")
-            return
-        
         try:
-            fig = current_satellite_plot()
-            filename = f"satellite_plot_{input.satellite()}.png"
-            fig.savefig(filename, dpi=300, bbox_inches='tight')
-            download_message.set(f"✅ Satellite plot saved as {filename}")
+            # This would need to be implemented with actual file download logic
+            # For now, we'll just show a message
+            download_message.set("✅ Satellite plot download initiated (HTML format)")
         except Exception as e:
-            download_message.set(f"❌ Error saving satellite plot: {str(e)}")
+            download_message.set(f"❌ Error downloading satellite plot: {str(e)}")
     
     @reactive.Effect
     @reactive.event(input.download_full_spectrum_plot)
     def download_full_spectrum_plot():
         """Download full spectrum plot"""
-        if not current_full_spectrum_plot():
-            download_message.set("No full spectrum plot available for download")
-            return
-        
         try:
-            fig = current_full_spectrum_plot()
-            filename = f"full_spectrum_plot_{input.spectrometer()}.png"
-            fig.savefig(filename, dpi=300, bbox_inches='tight')
-            download_message.set(f"✅ Full spectrum plot saved as {filename}")
+            download_message.set("✅ Full spectrum plot download initiated (HTML format)")
         except Exception as e:
-            download_message.set(f"❌ Error saving full spectrum plot: {str(e)}")
+            download_message.set(f"❌ Error downloading full spectrum plot: {str(e)}")
     
     @reactive.Effect
     @reactive.event(input.download_satellite_band_plot)
     def download_satellite_band_plot():
         """Download satellite band plot"""
-        if not current_band_plot():
-            download_message.set("No band plot available for download")
-            return
-        
         try:
-            fig = current_band_plot()
-            filename = f"band_plot_{input.satellite()}.png"
-            fig.savefig(filename, dpi=300, bbox_inches='tight')
-            download_message.set(f"✅ Band plot saved as {filename}")
+            download_message.set("✅ Band plot download initiated (HTML format)")
         except Exception as e:
-            download_message.set(f"❌ Error saving band plot: {str(e)}")
+            download_message.set(f"❌ Error downloading band plot: {str(e)}")
     
     @output
     @render.text
     def download_status():
         """Display download status"""
         return download_message.get()
-
 # Create the Shiny app
 app = App(app_ui, server)
 

@@ -112,7 +112,7 @@ def _get_satellite_spectral_plot_card():
             ),
             style="overflow: auto;"
         ),
-        ui.output_plot("satellite_main_plot", height="700px")
+        ui.output_ui("satellite_main_plot", height="700px")
     )
 
 def _get_satellite_data_table_card():
