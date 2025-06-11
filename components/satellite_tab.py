@@ -27,8 +27,8 @@ def get_satellite_tab(mineral_families, default_satellite):
                     "Band Information",
                     ui.div(
                         {"class": "tab-content"},
-                        _get_satellite_band_info_card(),
-                        _get_satellite_band_plot_card()
+                        _get_satellite_band_info_card()
+                        #_get_satellite_band_plot_card()
                     )
                 )
             )
