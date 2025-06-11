@@ -1,6 +1,5 @@
 # app.py
 from shiny import App, ui, render, reactive
-from shinywidgets import render_widget  
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
