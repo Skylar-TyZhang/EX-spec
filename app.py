@@ -19,6 +19,7 @@ from components.satellite_tab import get_satellite_tab
 from components.full_spectrum_tab import get_full_spectrum_tab
 from components.ui_tags_setup import ui_tags
 from components.header import get_header
+from components.usage_tab import get_usage_info
 
 # Configuration
 BASE_DIR = "ASCIIdata"
@@ -93,6 +94,9 @@ app_ui = ui.page_fluid(
             
             # Full Spectrum Data Tab
             get_full_spectrum_tab(full_spectrum_mineral_families, DEFAULT_COLLECTION, DEFAULT_SPECTROMETER),
+            
+            # Usage Information Tab
+            get_usage_info()
         ),
         
         # Download Status
