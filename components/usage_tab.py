@@ -11,8 +11,7 @@ def get_usage_info():
     
             An interactive web application for exploring and visualising mineral spectral data from the USGS Spectral Library. This tool provides access to both satellite-resampled and full spectrum data with filtering and visualisation capabilities.
     
-            ## Usage Instructions
-
+            
             ### Using the Interface
 
             #### Satellite Resampled Spectra Tab

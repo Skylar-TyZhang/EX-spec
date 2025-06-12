@@ -47,9 +47,20 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
                         "AVIRIS"   # NASA AVIRIS (0.37-2.5 μm)
                     ],
                     selected=default_spectrometer
-                )
+                ),
+                ui.help_text(
+                    ui.HTML("""
+                    <div style="font-size: 10px; color: #666; line-height: 1.2;">
+                    <strong>BECK:</strong> Beckman 5270 (0.2-3.0 μm)<br>
+                    <strong>ASDFR:</strong> ASD FieldSpec Standard Resolution (0.35-2.5 μm)<br>
+                    <strong>ASDHR:</strong> ASD FieldSpec High Resolution (0.35-2.5 μm)<br>
+                    <strong>ASDNG:</strong> ASD FieldSpec Next Generation (0.35-2.5 μm)<br>
+                    <strong>NIC4:</strong> Nicolet FTIR (1.12-216 μm)<br>
+                    <strong>AVIRIS:</strong> NASA AVIRIS Imaging Spectrometer (0.37-2.5 μm)
+                    </div>
+                    """)
             ),
-            
+            ),
             # Mineral Family Selection (Multiple)
             ui.div(
                 ui.h5("Mineral Families"),
