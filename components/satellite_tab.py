@@ -89,7 +89,8 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
                 ),
                 ui.input_checkbox("satellite_show_band_centers", "Band Centers", value=True),
                 ui.input_checkbox("satellite_show_band_ranges", "Band Ranges", value=True),
-                ui.input_checkbox("satellite_show_response_functions", "Response Functions", value=True)
+                ui.input_checkbox("satellite_show_response_functions", "Response Functions", value=True),
+                ui.input_checkbox("satellite_show_atmospheric_transmission", "Atmospheric Transmission", value=False)
             ),
             
             col_widths=[3, 3, 3, 3]

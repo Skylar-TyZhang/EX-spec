@@ -4,6 +4,7 @@ from plotly.subplots import make_subplots
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
+from atmospheric_transmission import atmospheric_data
 
 class PlotlyUSGSVisualiser:
     """Enhanced visualization class using Plotly for interactive spectral analysis"""
@@ -18,6 +19,7 @@ class PlotlyUSGSVisualiser:
                                     show_band_centers: bool = True,
                                     show_band_ranges: bool = True,
                                     show_response_functions: bool = True,
+                                    show_atmospheric_transmission: bool = False,
                                     height: int = 700) -> go.Figure:
         """
         Create interactive satellite spectra plot with band information
@@ -34,6 +36,8 @@ class PlotlyUSGSVisualiser:
             Show shaded regions for band ranges
         show_response_functions : bool
             Show band response functions subplot
+        show_atmospheric_transmission : bool
+            Show atmospheric transmission overlay
         height : int
             Total figure height in pixels
             
@@ -53,27 +57,19 @@ class PlotlyUSGSVisualiser:
                     f"{lib_obj.satellite} Band Response Functions"
                 ],
                 vertical_spacing=0.08,
-                shared_xaxes=True
+                shared_xaxes=True,
+                specs=[[{"secondary_y": True}], [{"secondary_y": False}]]  # Enable secondary y-axis for top subplot
             )
             response_row = 2
         else:
-            fig = go.Figure()
+            fig = make_subplots(specs=[[{"secondary_y": True}]])  # Enable secondary y-axis for single plot
             response_row = None
         
-        # Calculate y-axis range for label positioning
-        all_spectra_values = []
-        for key in selected_keys:
-            if key in lib_obj.spectra:
-                spectrum = lib_obj.spectra[key]['spectrum']
-                all_spectra_values.extend(spectrum[~np.isnan(spectrum)])
+        # Add atmospheric transmission first (background layer)
+        if show_atmospheric_transmission:
+            self._add_atmospheric_transmission(fig, lib_obj.wavelengths, subplot_row=1 if response_row else None)
         
-        if all_spectra_values:
-            y_min, y_max = np.min(all_spectra_values), np.max(all_spectra_values)
-            y_range = y_max - y_min
-        else:
-            y_min, y_max, y_range = 0, 1, 1
-        
-        # Plot mineral spectra with left-side labels
+        # Plot mineral spectra 
         for i, key in enumerate(selected_keys):
             if key in lib_obj.spectra:
                 spectrum = lib_obj.spectra[key]['spectrum']
@@ -91,7 +87,6 @@ class PlotlyUSGSVisualiser:
                 
                 color = self.default_colors[i % len(self.default_colors)]
                 
-                # Create spectrum trace 
                 trace = go.Scatter(
                     x=lib_obj.wavelengths,
                     y=spectrum,
@@ -102,35 +97,30 @@ class PlotlyUSGSVisualiser:
                     hovertext=hover_text,
                     hoverinfo='text',
                     legendgroup='spectra',
-                    showlegend= True
+                    showlegend=True
                 )
                 
                 if response_row:
                     fig.add_trace(trace, row=1, col=1)
                 else:
                     fig.add_trace(trace)
-                
-                
         
-        # Add band information
+        # Get wavelength range for consistent x-axis
+        if lib_obj.wavelengths is not None:
+            x_range = [lib_obj.wavelengths.min(), lib_obj.wavelengths.max()]
+        
+        # Add band information with consistent colors
         if lib_obj.bands and lib_obj.wavelengths is not None:
             self._add_band_overlays(fig, lib_obj, show_band_centers, show_band_ranges, 
                                   subplot_row=1 if response_row else None)
         
-        # Add band response functions
+        # Add band response functions with matching colors
         if show_response_functions and response_row and lib_obj.bands:
             self._add_band_response_functions(fig, lib_obj, response_row)
             
-            # Ensure x-axis ranges match between main plot and response function plot
-            if lib_obj.wavelengths is not None:
-                x_min, x_max = np.min(lib_obj.wavelengths), np.max(lib_obj.wavelengths)
-                # Add small padding to the range
-                x_padding = (x_max - x_min) * 0.02
-                x_range = [x_min - x_padding, x_max + x_padding]
-                
-                # Set the same x-axis range for both subplots
-                fig.update_xaxes(range=x_range, row=1, col=1)
-                fig.update_xaxes(range=x_range, row=2, col=1)
+            # Ensure x-axis range matches between main plot and response functions
+            fig.update_xaxes(range=x_range, row=1, col=1)
+            fig.update_xaxes(range=x_range, row=2, col=1)
         
         # Update layout
         self._update_satellite_layout(fig, lib_obj, height, response_row is not None)
@@ -139,6 +129,7 @@ class PlotlyUSGSVisualiser:
     
     def create_full_spectrum_plot(self, lib_obj, selected_keys: List[str],
                                 wavelength_range: Optional[Tuple[float, float]] = None,
+                                show_atmospheric_transmission: bool = False,
                                 height: int = 600) -> go.Figure:
         """
         Create interactive full spectrum plot with wavelength filtering
@@ -151,6 +142,8 @@ class PlotlyUSGSVisualiser:
             List of spectrum keys to plot
         wavelength_range : Tuple[float, float], optional
             Wavelength range (min, max) in microns
+        show_atmospheric_transmission : bool
+            Show atmospheric transmission overlay
         height : int
             Figure height in pixels
             
@@ -160,33 +153,17 @@ class PlotlyUSGSVisualiser:
             Interactive Plotly figure
         """
         
-        fig = go.Figure()
+        fig = make_subplots(specs=[[{"secondary_y": True}]])  # Enable secondary y-axis
         
-        # Calculate y-axis range for label positioning
-        all_spectra_values = []
-        for key in selected_keys:
-            if key in lib_obj.spectra:
-                spectrum = lib_obj.spectra[key]['spectrum']
-                wavelengths = lib_obj.wavelengths
-                
-                # Apply wavelength filtering
-                if wavelength_range:
-                    mask = (wavelengths >= wavelength_range[0]) & (wavelengths <= wavelength_range[1])
-                    spectrum = spectrum[mask]
-                
-                all_spectra_values.extend(spectrum[~np.isnan(spectrum)])
-        
-        if all_spectra_values:
-            y_min, y_max = np.min(all_spectra_values), np.max(all_spectra_values)
-            y_range = y_max - y_min
-        else:
-            y_min, y_max, y_range = 0, 1, 1
-        
-        # Determine the leftmost wavelength for label positioning
+        # Determine wavelength range for atmospheric data
+        plot_wavelengths = lib_obj.wavelengths
         if wavelength_range:
-            leftmost_wavelength = wavelength_range[0]
-        else:
-            leftmost_wavelength = np.min(lib_obj.wavelengths)
+            mask = (plot_wavelengths >= wavelength_range[0]) & (plot_wavelengths <= wavelength_range[1])
+            plot_wavelengths = plot_wavelengths[mask]
+        
+        # Add atmospheric transmission first (background layer)
+        if show_atmospheric_transmission:
+            self._add_atmospheric_transmission(fig, plot_wavelengths)
         
         for i, key in enumerate(selected_keys):
             if key in lib_obj.spectra:
@@ -227,8 +204,7 @@ class PlotlyUSGSVisualiser:
                         showlegend=True  
                     )
                 )
-                
-                
+        
         # Update layout for full spectrum
         self._update_full_spectrum_layout(fig, lib_obj, height, wavelength_range)
         
@@ -435,7 +411,7 @@ class PlotlyUSGSVisualiser:
             height=height,
             hovermode='x unified',
             showlegend=True,  
-            margin=dict(t=100, b=50, l=150, r=50)  # Increased left margin for annotations
+            margin=dict(t=100, b=50, l=50, r=100)  # Right margin for secondary y-axis
         )
         
         # Update x and y axes
@@ -444,8 +420,8 @@ class PlotlyUSGSVisualiser:
             fig.update_yaxes(title_text="Reflectance", row=1, col=1, showgrid=True)
             fig.update_yaxes(title_text="Response", row=2, col=1, showgrid=True)
         else:
-            fig.update_xaxes(title_text="Wavelength (μm)", showgrid=True, gridcolor='lightgray')
-            fig.update_yaxes(title_text="Reflectance", showgrid=True, gridcolor='lightgray')
+            fig.update_xaxes(title_text="Wavelength (μm)", showgrid=True)
+            fig.update_yaxes(title_text="Reflectance", showgrid=True)
         
         # Add crosshair cursor
         fig.update_layout(
@@ -469,7 +445,7 @@ class PlotlyUSGSVisualiser:
             height=height,
             hovermode='x unified',
             showlegend=True,  
-            margin=dict(t=80, b=50, l=150, r=50)  # Increased left margin for annotations
+            margin=dict(t=80, b=50, l=50, r=100)  # Right margin for secondary y-axis
         )
         
         fig.update_xaxes(
@@ -496,99 +472,56 @@ class PlotlyUSGSVisualiser:
             )
         )
 
-    def create_comparison_plot(self, satellite_lib, full_lib, mineral_name: str, 
-                             wavelength_range: Optional[Tuple[float, float]] = None,
-                             height: int = 600) -> go.Figure:
-        """
-        Create comparison plot between satellite and full spectrum data
+    def _add_atmospheric_transmission(self, fig: go.Figure, wavelengths, subplot_row: Optional[int] = None):
+        """Add atmospheric transmission overlay to the plot"""
         
-        Parameters:
-        -----------
-        satellite_lib : USGSSatelliteSpectra
-            Satellite library object
-        full_lib : USGSSpectra
-            Full spectrum library object
-        mineral_name : str
-            Mineral name to compare
-        wavelength_range : Tuple[float, float], optional
-            Wavelength range for full spectrum
-        height : int
-            Figure height
-            
-        Returns:
-        --------
-        plotly.graph_objects.Figure
-            Comparison plot
-        """
+        if not atmospheric_data.data_loaded:
+            return
         
-        fig = make_subplots(
-            rows=2, cols=1,
-            row_heights=[0.5, 0.5],
-            subplot_titles=[
-                f"{satellite_lib.satellite} Satellite Data - {mineral_name}",
-                f"{full_lib.spectrometer} Full Spectrum Data - {mineral_name}"
-            ],
-            vertical_spacing=0.1
+        # Get atmospheric transmission data for the wavelength range
+        wl_range = (wavelengths.min(), wavelengths.max())
+        atm_wavelengths, atm_transmission = atmospheric_data.get_transmission(wl_range)
+        
+        if atm_wavelengths is None or len(atm_wavelengths) == 0:
+            return
+        
+        # Add atmospheric transmission trace to secondary y-axis
+        fig.add_trace(
+            go.Scatter(
+                x=atm_wavelengths,
+                y=atm_transmission,
+                mode='lines',
+                name='Atmospheric Transmission',
+                line=dict(color='gray', width=1, dash='dot'),
+                opacity=0.7,
+                hovertemplate="<b>Atmospheric Transmission</b><br>" +
+                            "Wavelength: %{x:.3f} μm<br>" +
+                            "Transmission: %{y:.3f}<extra></extra>",
+                showlegend=True,
+                legendgroup='atmosphere'
+            ),
+            secondary_y=True,
+            row=subplot_row, col=1 if subplot_row else None
         )
         
-        # Add satellite data
-        sat_keys = [k for k in satellite_lib.spectra.keys() if mineral_name.lower() in k.lower()][:3]
-        for i, key in enumerate(sat_keys):
-            if key in satellite_lib.spectra:
-                spectrum = satellite_lib.spectra[key]['spectrum']
-                metadata = satellite_lib.spectra[key]['metadata']
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=satellite_lib.wavelengths,
-                        y=spectrum,
-                        mode='lines+markers',
-                        name=f"Sat: {metadata['sample_id']}",
-                        line=dict(color=self.default_colors[i], width=2),
-                        legendgroup='satellite'
-                    ),
-                    row=1, col=1
+        # Configure secondary y-axis
+        if subplot_row:
+            # For subplots - only configure for the main plot (row 1)
+            if subplot_row == 1:
+                fig.update_yaxes(
+                    title_text="Atmospheric Transmission",
+                    range=[0, 1],
+                    showgrid=False,
+                    tickfont=dict(color='gray', size=10),
+                    secondary_y=True,
+                    row=subplot_row, col=1
                 )
-        
-        # Add full spectrum data
-        full_keys = [k for k in full_lib.spectra.keys() if mineral_name.lower() in k.lower()][:3]
-        for i, key in enumerate(full_keys):
-            if key in full_lib.spectra:
-                spectrum = full_lib.spectra[key]['spectrum']
-                metadata = full_lib.spectra[key]['metadata']
-                wavelengths = full_lib.wavelengths
-                
-                # Apply wavelength filtering
-                if wavelength_range:
-                    mask = (wavelengths >= wavelength_range[0]) & (wavelengths <= wavelength_range[1])
-                    wavelengths = wavelengths[mask]
-                    spectrum = spectrum[mask]
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=wavelengths,
-                        y=spectrum,
-                        mode='lines',
-                        name=f"Full: {metadata['sample_id']}",
-                        line=dict(color=self.default_colors[i], width=2),
-                        legendgroup='full_spectrum'
-                    ),
-                    row=2, col=1
-                )
-        
-        # Add band overlays to satellite plot
-        if satellite_lib.bands:
-            self._add_band_overlays(fig, satellite_lib, True, True, subplot_row=1)
-        
-        # Update layout
-        fig.update_layout(
-            title=f"Satellite vs Full Spectrum Comparison: {mineral_name}",
-            height=height,
-            hovermode='x unified',
-            showlegend=True
-        )
-        
-        fig.update_xaxes(title_text="Wavelength (μm)", showgrid=True)
-        fig.update_yaxes(title_text="Reflectance", showgrid=True)
-        
-        return fig
+        else:
+            # For single plot
+            fig.update_yaxes(
+                title_text="Atmospheric Transmission",
+                range=[0, 1],
+                showgrid=False,
+                tickfont=dict(color='gray', size=10),
+                secondary_y=True
+            )

@@ -59,8 +59,9 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
                     <strong>AVIRIS:</strong> NASA AVIRIS Imaging Spectrometer (0.37-2.5 μm)
                     </div>
                     """)
+                )
             ),
-            ),
+            
             # Mineral Family Selection (Multiple)
             ui.div(
                 ui.h5("Mineral Families"),
@@ -95,6 +96,7 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
                     "Max Samples per Family:",
                     min=1, max=20, value=5, step=1
                 ),
+                ui.input_checkbox("full_spectrum_show_atmospheric_transmission", "Atmospheric Transmission", value=False),
                 ui.h6("Wavelength Range (μm)", style="margin-top: 15px;"),
                 ui.input_slider(
                     "wavelength_range",

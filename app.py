@@ -13,6 +13,7 @@ from USGSSpectra import USGSSpectra
 
 # Import the Plotly visualiser
 from USGSPlotly import PlotlyUSGSVisualiser
+from atmospheric_transmission import atmospheric_data
 
 # Import the custom components
 from components.satellite_tab import get_satellite_tab
@@ -216,6 +217,7 @@ def server(input, output, session):
                 show_band_centers=input.satellite_show_band_centers(),
                 show_band_ranges=input.satellite_show_band_ranges(),
                 show_response_functions=input.satellite_show_response_functions(),
+                show_atmospheric_transmission=input.satellite_show_atmospheric_transmission(),
                 height=700
             )
             
@@ -416,6 +418,7 @@ def server(input, output, session):
                 lib_obj,
                 selected_minerals,
                 wavelength_range=tuple(input.wavelength_range()),
+                show_atmospheric_transmission=input.full_spectrum_show_atmospheric_transmission(),
                 height=600
             )
             
