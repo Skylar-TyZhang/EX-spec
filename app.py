@@ -515,6 +515,138 @@ def server(input, output, session):
         except Exception as e:
             download_message.set(f"❌ Error downloading band plot: {str(e)}")
     
+    # === DOWNLOAD HANDLERS ===
+    @reactive.Effect
+    @reactive.event(input.download_satellite_table)
+    def download_satellite_table():
+        """Download selected satellite mineral data"""
+        if not current_satellite_lib() or not input.satellite_mineral_families():
+            download_message.set("No satellite data available for download")
+            return
+        
+        try:
+            lib_obj = current_satellite_lib()
+            
+            # Get selected minerals
+            if input.satellite_individual_minerals():
+                selected_keys = input.satellite_individual_minerals()
+            else:
+                selected_keys = get_filtered_satellite_minerals()
+            
+            if not selected_keys:
+                download_message.set("No minerals selected")
+                return
+            
+            # Create detailed export data
+            export_data = []
+            for key in selected_keys:
+                if key in lib_obj.spectra:
+                    spectrum = lib_obj.spectra[key]['spectrum']
+                    metadata = lib_obj.spectra[key]['metadata']
+                    
+                    for i, (wl, refl) in enumerate(zip(lib_obj.wavelengths, spectrum)):
+                        export_data.append({
+                            'Sample_Key': key,
+                            'Material': metadata['material'],
+                            'Sample_ID': metadata['sample_id'],
+                            'Spectrometer': metadata['spectrometer'],
+                            'Purity': metadata['purity'],
+                            'Measurement_Type': metadata['measurement_type'],
+                            'Satellite': lib_obj.satellite,
+                            'Wavelength_um': wl,
+                            'Band_Number': i + 1,
+                            'Reflectance_Value': refl
+                        })
+            
+            df = pd.DataFrame(export_data)
+            filename = f"satellite_data_{input.satellite()}_{len(selected_keys)}samples.csv"
+            df.to_csv(filename, index=False)
+            
+            download_message.set(f"✅ Satellite data exported as {filename} ({len(df)} records)")
+            
+        except Exception as e:
+            download_message.set(f"❌ Error exporting satellite data: {str(e)}")
+
+    @reactive.Effect
+    @reactive.event(input.download_full_spectrum_table)
+    def download_full_spectrum_table():
+        """Download selected full spectrum mineral data"""
+        if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
+            download_message.set("No full spectrum data available for download")
+            return
+        
+        try:
+            lib_obj = current_full_spectrum_lib()
+            
+            # Get selected minerals
+            if input.full_spectrum_individual_minerals():
+                selected_keys = input.full_spectrum_individual_minerals()
+            else:
+                selected_keys = get_filtered_full_spectrum_minerals()
+            
+            if not selected_keys:
+                download_message.set("No minerals selected")
+                return
+            
+            # Create detailed export data
+            export_data = []
+            for key in selected_keys:
+                if key in lib_obj.spectra:
+                    spectrum = lib_obj.spectra[key]['spectrum']
+                    metadata = lib_obj.spectra[key]['metadata']
+                    wavelengths = lib_obj.wavelengths
+                    
+                    # Apply wavelength filtering if specified
+                    if input.wavelength_range():
+                        mask = (wavelengths >= input.wavelength_range()[0]) & (wavelengths <= input.wavelength_range()[1])
+                        wavelengths = wavelengths[mask]
+                        spectrum = spectrum[mask]
+                    
+                    for wl, val in zip(wavelengths, spectrum):
+                        export_data.append({
+                            'Sample_Key': key,
+                            'Material': metadata['material'],
+                            'Sample_ID': metadata['sample_id'],
+                            'Spectrometer': metadata['spectrometer'],
+                            'Purity': metadata['purity'],
+                            'Measurement_Type': metadata['measurement_type'],
+                            'Collection': lib_obj.collection,
+                            'Wavelength_um': wl,
+                            'Spectral_Value': val,
+                            'Wavelength_Range': f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm"
+                        })
+            
+            df = pd.DataFrame(export_data)
+            filename = f"full_spectrum_data_{lib_obj.spectrometer}_{len(selected_keys)}samples.csv"
+            df.to_csv(filename, index=False)
+            
+            download_message.set(f"✅ Full spectrum data exported as {filename} ({len(df)} records)")
+            
+        except Exception as e:
+            download_message.set(f"❌ Error exporting full spectrum data: {str(e)}")
+
+    @reactive.Effect
+    @reactive.event(input.download_satellite_band_table)
+    def download_satellite_band_table():
+        """Download satellite band information table"""
+        if not current_satellite_lib():
+            download_message.set("No satellite data available for download")
+            return
+        
+        try:
+            lib_obj = current_satellite_lib()
+            band_info = lib_obj.get_band_info()
+            
+            if band_info is not None and not band_info.empty:
+                filename = f"band_info_{input.satellite()}.csv"
+                band_info.to_csv(filename, index=False)
+                download_message.set(f"✅ Band information downloaded as {filename}")
+            else:
+                download_message.set("❌ No band information available")
+                
+        except Exception as e:
+            download_message.set(f"❌ Error downloading band table: {str(e)}")
+    
     @output
     @render.text
     def download_status():
