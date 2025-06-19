@@ -28,7 +28,6 @@ def get_satellite_tab(mineral_families, default_satellite):
                     ui.div(
                         {"class": "tab-content"},
                         _get_satellite_band_info_card()
-                        #_get_satellite_band_plot_card()
                     )
                 )
             )
@@ -115,8 +114,8 @@ def _get_satellite_data_table_card():
         ui.div(
             ui.h4("Selected Satellite Mineral Data", style="margin-top: 0;"),
             ui.div(
-                ui.input_action_button("download_satellite_table", "Download Data", 
-                                     class_="btn-success download-btn btn-sm"),
+                ui.download_button("download_satellite_table", "Download Data", 
+                                 class_="btn-success download-btn btn-sm"),
                 style="float: right;"
             ),
             style="overflow: auto;"
@@ -131,7 +130,7 @@ def _get_satellite_band_info_card():
         ui.div(
             ui.h4("Satellite Band Information Summary", style="margin-top: 0;"),
             ui.div(
-                ui.input_action_button(
+                ui.download_button(
                     "download_satellite_band_table",
                     "Download Table",
                     class_="btn-success download-btn btn-sm",
@@ -141,23 +140,4 @@ def _get_satellite_band_info_card():
             style="overflow: auto;",
         ),
         ui.output_data_frame("satellite_band_info_table"),
-    )
-
-def _get_satellite_band_plot_card():
-    """Satellite band response functions plot card"""
-    return ui.div(
-        {"class": "card plot-card"},
-        ui.div(
-            ui.h4("Satellite Band Response Functions", style="margin-top: 0;"),
-            ui.div(
-                ui.input_action_button(
-                    "download_satellite_band_plot",
-                    "Download Plot",
-                    class_="btn-info download-btn btn-sm",
-                ),
-                style="float: right;",
-            ),
-            style="overflow: auto;",
-        ),
-        ui.output_plot("satellite_band_plot", height="500px"),
     )

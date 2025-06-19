@@ -113,7 +113,7 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
     )
 
 def _get_full_spectrum_plot_card():
-    """Full spectrum visualisation plot card"""
+    """Full spectrum visualisation plot card - removed download button since Plotly handles this"""
     return ui.div(
         {"class": "card plot-card"},
         ui.output_ui("full_spectrum_main_plot", height="700px")
@@ -126,8 +126,8 @@ def _get_full_spectrum_data_table_card():
         ui.div(
             ui.h4("Selected Full Spectrum Mineral Data", style="margin-top: 0;"),
             ui.div(
-                ui.input_action_button("download_full_spectrum_table", "Download Data", 
-                                     class_="btn-success download-btn btn-sm"),
+                ui.download_button("download_full_spectrum_table", "Download Data", 
+                                 class_="btn-success download-btn btn-sm"),
                 style="float: right;"
             ),
             style="overflow: auto;"
