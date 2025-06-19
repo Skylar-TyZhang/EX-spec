@@ -4,8 +4,9 @@ from plotly.subplots import make_subplots
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
-from atmospheric_transmission import atmospheric_data
-
+from atmospheric_transmission import AtmosphericTransmission
+# Global instance for easy access
+atmospheric_data = AtmosphericTransmission(data_file_path="data/Atmos_constits.xls")
 class PlotlyUSGSVisualiser:
     """Enhanced visualization class using Plotly for interactive spectral analysis"""
     
@@ -77,11 +78,11 @@ class PlotlyUSGSVisualiser:
                 
                 # Create hover text with detailed information
                 hover_text = [
-                    f"Wavelength: {wl:.3f} μm<br>"
+                    #f"Wavelength: {wl:.3f} μm<br>"
                     f"Reflectance: {refl:.4f}<br>"
-                    f"Material: {metadata['material']}<br>"
-                    f"Sample: {metadata['sample_id']}<br>"
-                    f"Type: {metadata['measurement_type']}"
+                    #f"Material: {metadata['material']}<br>"
+                    #f"Sample: {metadata['sample_id']}<br>"
+                    #f"Type: {metadata['measurement_type']}"
                     for wl, refl in zip(lib_obj.wavelengths, spectrum)
                 ]
                 
@@ -181,8 +182,8 @@ class PlotlyUSGSVisualiser:
                 hover_text = [
                     f"Wavelength: {wl:.3f} μm<br>"
                     f"Value: {val:.4f}<br>"
-                    f"Material: {metadata['material']}<br>"
-                    f"Sample: {metadata['sample_id']}<br>"
+                    #f"Material: {metadata['material']}<br>"
+                    #f"Sample: {metadata['sample_id']}<br>"
                     #f"Spectrometer: {metadata['spectrometer']}<br>"
                     #f"Type: {metadata['measurement_type']}"
                     for wl, val in zip(wavelengths, spectrum)
