@@ -11,6 +11,7 @@ plotly>=5.17.0
 
 # Excel file handling
 openpyxl>=3.0.0
+xlrd >= 2.0.1
 
 # File path handling
 pathlib2>=2.3.7; python_version < "3.4"
