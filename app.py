@@ -488,43 +488,15 @@ def server(input, output, session):
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
     
     # === DOWNLOAD HANDLERS ===
-    @reactive.Effect
-    @reactive.event(input.download_satellite_plot)
-    def download_satellite_plot():
-        """Download satellite spectral plot"""
-        try:
-            # This would need to be implemented with actual file download logic
-            # For now, we'll just show a message
-            download_message.set("✅ Satellite plot download initiated (HTML format)")
-        except Exception as e:
-            download_message.set(f"❌ Error downloading satellite plot: {str(e)}")
-    
-    @reactive.Effect
-    @reactive.event(input.download_full_spectrum_plot)
-    def download_full_spectrum_plot():
-        """Download full spectrum plot"""
-        try:
-            download_message.set("✅ Full spectrum plot download initiated (HTML format)")
-        except Exception as e:
-            download_message.set(f"❌ Error downloading full spectrum plot: {str(e)}")
-    
-    @reactive.Effect
-    @reactive.event(input.download_satellite_band_plot)
-    def download_satellite_band_plot():
-        """Download satellite band plot"""
-        try:
-            download_message.set("✅ Band plot download initiated (HTML format)")
-        except Exception as e:
-            download_message.set(f"❌ Error downloading band plot: {str(e)}")
-    
-    # === DOWNLOAD HANDLERS ===
-    @reactive.Effect
-    @reactive.event(input.download_satellite_table)
+    @render.download(
+        filename=lambda: f"satellite_data_{input.satellite()}_{len(input.satellite_individual_minerals() or get_filtered_satellite_minerals())}samples.csv"
+    )
     def download_satellite_table():
         """Download selected satellite mineral data"""
         if not current_satellite_lib() or not input.satellite_mineral_families():
-            download_message.set("No satellite data available for download")
-            return
+            # Return empty content with error message
+            error_df = pd.DataFrame({'Error': ['No satellite data available for download']})
+            return error_df.to_csv(index=False)
         
         try:
             lib_obj = current_satellite_lib()
@@ -536,8 +508,8 @@ def server(input, output, session):
                 selected_keys = get_filtered_satellite_minerals()
             
             if not selected_keys:
-                download_message.set("No minerals selected")
-                return
+                error_df = pd.DataFrame({'Error': ['No minerals selected']})
+                return error_df.to_csv(index=False)
             
             # Create detailed export data
             export_data = []
@@ -561,13 +533,18 @@ def server(input, output, session):
                         })
             
             df = pd.DataFrame(export_data)
-            filename = f"satellite_data_{input.satellite()}_{len(selected_keys)}samples.csv"
-            df.to_csv(filename, index=False)
             
-            download_message.set(f"✅ Satellite data exported as {filename} ({len(df)} records)")
+            # Update download status
+            download_message.set(f"✅ Satellite data exported ({len(df)} records)")
+            
+            # Return the CSV content as a string
+            return df.to_csv(index=False)
             
         except Exception as e:
+            # Update download status with error
             download_message.set(f"❌ Error exporting satellite data: {str(e)}")
+            error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
+            return error_df.to_csv(index=False)
 
     @render.download(
         filename=lambda: f"full_spectrum_data_{current_full_spectrum_lib().spectrometer if current_full_spectrum_lib() else 'unknown'}_{len(input.full_spectrum_individual_minerals() or get_filtered_full_spectrum_minerals())}samples.csv"
@@ -575,8 +552,9 @@ def server(input, output, session):
     def download_full_spectrum_table():
         """Download selected full spectrum mineral data"""
         if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
-            # Return empty content with error message in filename
-            return pd.DataFrame().to_csv(index=False)
+            # Return empty content with error message
+            error_df = pd.DataFrame({'Error': ['No full spectrum data available for download']})
+            return error_df.to_csv(index=False)
         
         try:
             lib_obj = current_full_spectrum_lib()
@@ -589,7 +567,8 @@ def server(input, output, session):
             
             if not selected_keys:
                 # Return empty content
-                return pd.DataFrame().to_csv(index=False)
+                error_df = pd.DataFrame({'Error': ['No minerals selected']})
+                return error_df.to_csv(index=False)
             
             # Create detailed export data
             export_data = []
@@ -621,41 +600,51 @@ def server(input, output, session):
             
             df = pd.DataFrame(export_data)
             
-            # Return the CSV content as a string - this will be downloaded by the browser
+            # Update download status
+            download_message.set(f"✅ Full spectrum data exported ({len(df)} records)")
+            
+            # Return the CSV content as a string
             return df.to_csv(index=False)
             
         except Exception as e:
-            # Return error information as CSV
+            # Update download status with error
+            download_message.set(f"❌ Error exporting full spectrum data: {str(e)}")
             error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
             return error_df.to_csv(index=False)
     
-    @reactive.Effect
-    @reactive.event(input.download_satellite_band_table)
+    @render.download(
+        filename=lambda: f"band_info_{input.satellite()}.csv"
+    )
     def download_satellite_band_table():
         """Download satellite band information table"""
         if not current_satellite_lib():
-            download_message.set("No satellite data available for download")
-            return
+            error_df = pd.DataFrame({'Error': ['No satellite data available for download']})
+            return error_df.to_csv(index=False)
         
         try:
             lib_obj = current_satellite_lib()
             band_info = lib_obj.get_band_info()
             
             if band_info is not None and not band_info.empty:
-                filename = f"band_info_{input.satellite()}.csv"
-                band_info.to_csv(filename, index=False)
-                download_message.set(f"✅ Band information downloaded as {filename}")
+                # Update download status
+                download_message.set(f"✅ Band information downloaded")
+                return band_info.to_csv(index=False)
             else:
-                download_message.set("❌ No band information available")
+                error_df = pd.DataFrame({'Error': ['No band information available']})
+                return error_df.to_csv(index=False)
                 
         except Exception as e:
+            # Update download status with error
             download_message.set(f"❌ Error downloading band table: {str(e)}")
+            error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
+            return error_df.to_csv(index=False)
     
     @output
     @render.text
     def download_status():
         """Display download status"""
         return download_message.get()
+
 # Create the Shiny app
 app = App(app_ui, server)
 

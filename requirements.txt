@@ -29,16 +29,22 @@ scikit-learn>=1.0.0
 # Optional: For better memory management with large datasets
 psutil>=5.8.0
 
-os >= 0.1.0
+# Web framework dependencies (automatically installed with shiny)
+# These are typically installed automatically with shiny but listing for clarity
+starlette>=0.27.0
+uvicorn>=0.23.0
+jinja2>=3.0.0
+htmltools>=0.5.0
+
+# Type hints support
+typing-extensions>=4.0.0
+
+# File handling utilities
+pathlib2>=2.3.7; python_version < "3.4"
+
 # Development and debugging (optional)
 # ipython>=7.0.0
 # jupyter>=1.0.0
 
 # Optional: For enhanced plotting capabilities
 # seaborn>=0.11.0
-
-# Web framework dependencies (automatically installed with shiny)
-# starlette
-# uvicorn
-# jinja2
-# htmltools
