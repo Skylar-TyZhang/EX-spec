@@ -68,7 +68,6 @@ class PlotlyUSGSVisualiser:
         # Add atmospheric transmission first (background layer)
         if show_atmospheric_transmission:
             self._add_atmospheric_transmission(fig, lib_obj.wavelengths, subplot_row=1 if response_row else None)
-            print("Added atmospheric transmission overlay")
         
         # Plot mineral spectra 
         for i, key in enumerate(selected_keys):
@@ -165,7 +164,6 @@ class PlotlyUSGSVisualiser:
         # Add atmospheric transmission first (background layer)
         if show_atmospheric_transmission:
             self._add_atmospheric_transmission(fig, plot_wavelengths)
-            print("Added atmospheric transmission overlay")
             
         for i, key in enumerate(selected_keys):
             if key in lib_obj.spectra:
@@ -478,6 +476,7 @@ class PlotlyUSGSVisualiser:
         """Add atmospheric transmission overlay to the plot"""
         
         if not atmospheric_data.data_loaded:
+            print("Atmospheric data not loaded.")
             return
         
         # Get atmospheric transmission data for the wavelength range
@@ -505,7 +504,7 @@ class PlotlyUSGSVisualiser:
             secondary_y=True,
             row=subplot_row, col=1 if subplot_row else None
         )
-        
+        print("Atmops-transmission added to plot.")
         # Configure secondary y-axis
         if subplot_row:
             # For subplots - only configure for the main plot (row 1)
