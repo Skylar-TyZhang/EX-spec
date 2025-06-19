@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
 from atmospheric_transmission import AtmosphericTransmission
-# Global instance for easy access
-atmospheric_data = AtmosphericTransmission(data_file_path="data/Atmos_constits.xls")
+
 class PlotlyUSGSVisualiser:
     """Enhanced visualization class using Plotly for interactive spectral analysis"""
     
@@ -475,7 +474,8 @@ class PlotlyUSGSVisualiser:
 
     def _add_atmospheric_transmission(self, fig: go.Figure, wavelengths, subplot_row: Optional[int] = None):
         """Add atmospheric transmission overlay to the plot"""
-        
+        # Global instance for easy access
+        atmospheric_data = AtmosphericTransmission(data_file_path="data/Atmos_constits.xls")
         if not atmospheric_data.data_loaded:
             print("Atmospheric data not loaded.")
             return
