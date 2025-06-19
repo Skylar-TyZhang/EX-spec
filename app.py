@@ -487,16 +487,16 @@ def server(input, output, session):
         except Exception as e:
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
     
-    # === DOWNLOAD HANDLERS ===
+    # === ASYNC DOWNLOAD HANDLERS ===
     @render.download(
-        filename=lambda: f"satellite_data_{input.satellite()}_{len(input.satellite_individual_minerals() or get_filtered_satellite_minerals())}samples.csv"
+        filename=lambda: f"{input.satellite()}_data.csv"
     )
-    def download_satellite_table():
-        """Download selected satellite mineral data"""
+    async def download_satellite_table():
+        """Download selected satellite mineral data using async generator"""
         if not current_satellite_lib() or not input.satellite_mineral_families():
-            # Return empty content with error message
-            error_df = pd.DataFrame({'Error': ['No satellite data available for download']})
-            return error_df.to_csv(index=False)
+            yield "Error,Message\n"
+            yield "No Data,No satellite data available for download\n"
+            return
         
         try:
             lib_obj = current_satellite_lib()
@@ -508,53 +508,56 @@ def server(input, output, session):
                 selected_keys = get_filtered_satellite_minerals()
             
             if not selected_keys:
-                error_df = pd.DataFrame({'Error': ['No minerals selected']})
-                return error_df.to_csv(index=False)
+                yield "Error,Message\n"
+                yield "No Selection,No minerals selected\n"
+                return
             
-            # Create detailed export data
-            export_data = []
+            # Yield CSV header
+            yield "Sample_Key,Material,Sample_ID,Spectrometer,Purity,Measurement_Type,Satellite,Wavelength_um,Band_Number,Reflectance_Value\n"
+            
+            # Update status
+            download_message.set(f"🔄 Generating satellite data for {len(selected_keys)} samples...")
+            
+            # Process each sample
+            processed_count = 0
             for key in selected_keys:
                 if key in lib_obj.spectra:
                     spectrum = lib_obj.spectra[key]['spectrum']
                     metadata = lib_obj.spectra[key]['metadata']
                     
+                    # Process in batches to provide feedback
                     for i, (wl, refl) in enumerate(zip(lib_obj.wavelengths, spectrum)):
-                        export_data.append({
-                            'Sample_Key': key,
-                            'Material': metadata['material'],
-                            'Sample_ID': metadata['sample_id'],
-                            'Spectrometer': metadata['spectrometer'],
-                            'Purity': metadata['purity'],
-                            'Measurement_Type': metadata['measurement_type'],
-                            'Satellite': lib_obj.satellite,
-                            'Wavelength_um': wl,
-                            'Band_Number': i + 1,
-                            'Reflectance_Value': refl
-                        })
+                        row = f"{key},{metadata['material']},{metadata['sample_id']},{metadata['spectrometer']},{metadata['purity']},{metadata['measurement_type']},{lib_obj.satellite},{wl},{i+1},{refl}\n"
+                        yield row
+                        
+                        # Small delay every 100 rows to not overwhelm
+                        if i % 100 == 0:
+                            await asyncio.sleep(0.001)
+                    
+                    processed_count += 1
+                    
+                    # Update progress periodically
+                    if processed_count % 5 == 0:
+                        download_message.set(f"🔄 Processing satellite data: {processed_count}/{len(selected_keys)} samples...")
+                        await asyncio.sleep(0.01)
             
-            df = pd.DataFrame(export_data)
-            
-            # Update download status
-            download_message.set(f"✅ Satellite data exported ({len(df)} records)")
-            
-            # Return the CSV content as a string
-            return df.to_csv(index=False)
+            # Final status update
+            total_rows = len(selected_keys) * len(lib_obj.wavelengths)
+            download_message.set(f"✅ Satellite data download completed ({total_rows} records)")
             
         except Exception as e:
-            # Update download status with error
             download_message.set(f"❌ Error exporting satellite data: {str(e)}")
-            error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
-            return error_df.to_csv(index=False)
+            yield f"Error,{str(e)}\n"
 
     @render.download(
-        filename=lambda: f"full_spectrum_data_{current_full_spectrum_lib().spectrometer if current_full_spectrum_lib() else 'unknown'}_{len(input.full_spectrum_individual_minerals() or get_filtered_full_spectrum_minerals())}samples.csv"
+        filename=lambda: f"{current_full_spectrum_lib().spectrometer if current_full_spectrum_lib() else 'unknown'}_full-spectrum.csv"
     )
-    def download_full_spectrum_table():
-        """Download selected full spectrum mineral data"""
+    async def download_full_spectrum_table():
+        """Download selected full spectrum mineral data using async generator"""
         if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
-            # Return empty content with error message
-            error_df = pd.DataFrame({'Error': ['No full spectrum data available for download']})
-            return error_df.to_csv(index=False)
+            yield "Error,Message\n"
+            yield "No Data,No full spectrum data available for download\n"
+            return
         
         try:
             lib_obj = current_full_spectrum_lib()
@@ -566,12 +569,20 @@ def server(input, output, session):
                 selected_keys = get_filtered_full_spectrum_minerals()
             
             if not selected_keys:
-                # Return empty content
-                error_df = pd.DataFrame({'Error': ['No minerals selected']})
-                return error_df.to_csv(index=False)
+                yield "Error,Message\n"
+                yield "No Selection,No minerals selected\n"
+                return
             
-            # Create detailed export data
-            export_data = []
+            # Yield CSV header
+            yield "Sample_Key,Material,Sample_ID,Spectrometer,Purity,Measurement_Type,Collection,Wavelength_um,Spectral_Value,Wavelength_Range\n"
+            
+            # Update status
+            download_message.set(f"🔄 Generating full spectrum data for {len(selected_keys)} samples...")
+            
+            # Process each sample
+            processed_count = 0
+            wavelength_range_str = f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm" if input.wavelength_range() else "Full Range"
+            
             for key in selected_keys:
                 if key in lib_obj.spectra:
                     spectrum = lib_obj.spectra[key]['spectrum']
@@ -584,60 +595,65 @@ def server(input, output, session):
                         wavelengths = wavelengths[mask]
                         spectrum = spectrum[mask]
                     
-                    for wl, val in zip(wavelengths, spectrum):
-                        export_data.append({
-                            'Sample_Key': key,
-                            'Material': metadata['material'],
-                            'Sample_ID': metadata['sample_id'],
-                            'Spectrometer': metadata['spectrometer'],
-                            'Purity': metadata['purity'],
-                            'Measurement_Type': metadata['measurement_type'],
-                            'Collection': lib_obj.collection,
-                            'Wavelength_um': wl,
-                            'Spectral_Value': val,
-                            'Wavelength_Range': f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm" if input.wavelength_range() else "Full Range"
-                        })
+                    # Process in batches
+                    for i, (wl, val) in enumerate(zip(wavelengths, spectrum)):
+                        row = f"{key},{metadata['material']},{metadata['sample_id']},{metadata['spectrometer']},{metadata['purity']},{metadata['measurement_type']},{lib_obj.collection},{wl},{val},{wavelength_range_str}\n"
+                        yield row
+                        
+                        # Small delay every 200 rows for full spectrum (larger datasets)
+                        if i % 200 == 0:
+                            await asyncio.sleep(0.001)
+                    
+                    processed_count += 1
+                    
+                    # Update progress periodically
+                    if processed_count % 3 == 0:
+                        download_message.set(f"🔄 Processing full spectrum data: {processed_count}/{len(selected_keys)} samples...")
+                        await asyncio.sleep(0.01)
             
-            df = pd.DataFrame(export_data)
-            
-            # Update download status
-            download_message.set(f"✅ Full spectrum data exported ({len(df)} records)")
-            
-            # Return the CSV content as a string
-            return df.to_csv(index=False)
+            # Final status update
+            total_rows = sum(len(lib_obj.spectra[key]['spectrum']) for key in selected_keys if key in lib_obj.spectra)
+            download_message.set(f"✅ Full spectrum data download completed ({total_rows} records)")
             
         except Exception as e:
-            # Update download status with error
             download_message.set(f"❌ Error exporting full spectrum data: {str(e)}")
-            error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
-            return error_df.to_csv(index=False)
+            yield f"Error,{str(e)}\n"
     
     @render.download(
-        filename=lambda: f"band_info_{input.satellite()}.csv"
+        filename=lambda: f"{input.satellite()}_band_info.csv"
     )
-    def download_satellite_band_table():
-        """Download satellite band information table"""
+    async def download_satellite_band_table():
+        """Download satellite band information table using async generator"""
         if not current_satellite_lib():
-            error_df = pd.DataFrame({'Error': ['No satellite data available for download']})
-            return error_df.to_csv(index=False)
+            yield "Error,Message\n"
+            yield "No Data,No satellite data available for download\n"
+            return
         
         try:
             lib_obj = current_satellite_lib()
             band_info = lib_obj.get_band_info()
             
             if band_info is not None and not band_info.empty:
-                # Update download status
-                download_message.set(f"✅ Band information downloaded")
-                return band_info.to_csv(index=False)
+                # Update status
+                download_message.set("🔄 Generating band information...")
+                await asyncio.sleep(0.1)
+                
+                # Yield header
+                yield ",".join(band_info.columns) + "\n"
+                
+                # Yield rows
+                for _, row in band_info.iterrows():
+                    yield ",".join(str(val) for val in row.values) + "\n"
+                    await asyncio.sleep(0.01)  # Small delay between rows
+                
+                download_message.set("✅ Band information download completed")
             else:
-                error_df = pd.DataFrame({'Error': ['No band information available']})
-                return error_df.to_csv(index=False)
+                yield "Error,Message\n"
+                yield "No Data,No band information available\n"
                 
         except Exception as e:
-            # Update download status with error
             download_message.set(f"❌ Error downloading band table: {str(e)}")
-            error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
-            return error_df.to_csv(index=False)
+            yield f"Error,{str(e)}\n"
     
     @output
     @render.text
