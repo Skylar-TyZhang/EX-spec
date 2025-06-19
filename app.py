@@ -6,6 +6,8 @@ import numpy as np
 from pathlib import Path
 import io
 import base64
+import asyncio
+import os
 
 # Import the USGS Spectra classes
 from USGSSatelliteSpectra import USGSSatelliteSpectra
@@ -567,13 +569,14 @@ def server(input, output, session):
         except Exception as e:
             download_message.set(f"❌ Error exporting satellite data: {str(e)}")
 
-    @reactive.Effect
-    @reactive.event(input.download_full_spectrum_table)
+    @render.download(
+        filename=lambda: f"full_spectrum_data_{current_full_spectrum_lib().spectrometer if current_full_spectrum_lib() else 'unknown'}_{len(input.full_spectrum_individual_minerals() or get_filtered_full_spectrum_minerals())}samples.csv"
+    )
     def download_full_spectrum_table():
         """Download selected full spectrum mineral data"""
         if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
-            download_message.set("No full spectrum data available for download")
-            return
+            # Return empty content with error message in filename
+            return pd.DataFrame().to_csv(index=False)
         
         try:
             lib_obj = current_full_spectrum_lib()
@@ -585,8 +588,8 @@ def server(input, output, session):
                 selected_keys = get_filtered_full_spectrum_minerals()
             
             if not selected_keys:
-                download_message.set("No minerals selected")
-                return
+                # Return empty content
+                return pd.DataFrame().to_csv(index=False)
             
             # Create detailed export data
             export_data = []
@@ -613,18 +616,19 @@ def server(input, output, session):
                             'Collection': lib_obj.collection,
                             'Wavelength_um': wl,
                             'Spectral_Value': val,
-                            'Wavelength_Range': f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm"
+                            'Wavelength_Range': f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm" if input.wavelength_range() else "Full Range"
                         })
             
             df = pd.DataFrame(export_data)
-            filename = f"full_spectrum_data_{lib_obj.spectrometer}_{len(selected_keys)}samples.csv"
-            df.to_csv(filename, index=False)
             
-            download_message.set(f"✅ Full spectrum data exported as {filename} ({len(df)} records)")
+            # Return the CSV content as a string - this will be downloaded by the browser
+            return df.to_csv(index=False)
             
         except Exception as e:
-            download_message.set(f"❌ Error exporting full spectrum data: {str(e)}")
-
+            # Return error information as CSV
+            error_df = pd.DataFrame({'Error': [f"Download failed: {str(e)}"]})
+            return error_df.to_csv(index=False)
+    
     @reactive.Effect
     @reactive.event(input.download_satellite_band_table)
     def download_satellite_band_table():

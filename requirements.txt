@@ -29,6 +29,7 @@ scikit-learn>=1.0.0
 # Optional: For better memory management with large datasets
 psutil>=5.8.0
 
+os >= 0.1.0
 # Development and debugging (optional)
 # ipython>=7.0.0
 # jupyter>=1.0.0
