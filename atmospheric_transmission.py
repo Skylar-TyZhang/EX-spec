@@ -22,6 +22,7 @@ class AtmosphericTransmission:
         
         if data_file_path:
             self.load_data(data_file_path)
+            print(f"Atmospheric data loaded")
         else:
             # Use default atmospheric transmission data (simplified model)
             #self._load_default_data()
