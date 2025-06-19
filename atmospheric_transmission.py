@@ -24,7 +24,8 @@ class AtmosphericTransmission:
             self.load_data(data_file_path)
         else:
             # Use default atmospheric transmission data (simplified model)
-            self._load_default_data()
+            #self._load_default_data()
+            print("No atmospheric data found")
     
     def load_data(self, file_path: str):
         """
@@ -67,7 +68,7 @@ class AtmosphericTransmission:
                       f"range {self.wavelengths.min():.3f}-{self.wavelengths.max():.3f} μm")
             else:
                 print("No valid atmospheric data found, using default model")
-                self._load_default_data()
+                #self._load_default_data()
                 
         except Exception as e:
             print(f"Error loading atmospheric data: {e}")

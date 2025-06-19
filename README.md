@@ -134,3 +134,9 @@ This application uses the **USGS Spectral Library Version 7** (splib07):
 
 - Kokaly, R., Clark, R.N., Swayze, G.A., Livo, K.E., Hoefen, T.M., Pearson, N.C., Wise, R.A., Benzel, W.M., Lowers, H.A., Driscoll, R.L., and Klein, A.J., 2017, <i>USGS Spectral Library Version 7 Data</i>: U.S. Geological Survey data release, https://dx.doi.org/10.5066/F7RR1WDJ.
 
+The atmospheric transmission data used in the application is sources from **MODTRAN**:
+
+- Berk, A., P. Conforti, R. Kennett, T. Perkins, F. Hawes, and J. van den Bosch. 2014. “MODTRAN® 6: A major upgrade of the MODTRAN® radiative transfer code.” 2014 6th Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing (WHISPERS), 24-27 June 2014.
+
+- Berk, Alexander, Anderson, Gail, Bernstein, Lawrence, Acharya, Prabhat, Dothe, H., Matthew, Michael, Adler-Golden, Steven, Chetwynd, James, Richtsmeier, Steven, Pukall, Brian, Allred, Clark, Jeong, Laila, and Hoke, Michael. 1999. “MODTRAN4 radiative transfer modeling for atmospheric correction.” Proc.SPIE.P. Anderson Gail, S. Bernstein Lawrence, K. Acharya Prabhat, H. Dothe, W. Matthew Michael, M. Adler-Golden Steven, H. Chetwynd James, Jr., C. Richtsmeier Steven, Pukall Brian, L. Allred Clark, S. Jeong Laila, and L. Hoke Michael. 1999. “MODTRAN4 radiative transfer modeling for atmospheric correction.” Proc. SPIE.
+
