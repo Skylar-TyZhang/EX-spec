@@ -175,6 +175,13 @@ cython_debug/
 
 
 *.png
+*.jpg
+photo_images/
+photo_thumbs/
+README/
 aster_minerals.csv
 spec_lib.ipynb
 test.ipynb
+*.html
+*.pdf
+HTMLmetadata/HTMLmetadata.xml
