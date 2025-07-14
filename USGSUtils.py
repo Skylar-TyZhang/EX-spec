@@ -14,14 +14,14 @@ class USGSUtils:
         self.spectra = {}
         # print(f"USGSUtils initialized with data directory: {data_dir} and prefix: {prefix}")
             
-    def save_to_pickle(self, data, description=None):
+    def save_to_pickle(self, data):
         """
         Save data to a pickle file.
         
         :param data: Data to be saved.
         :param filename: Name of the file where data will be saved.
         """
-        filename = f'pickle_data/{self.prefix}{description}_data.pkl'
+        filename = f'pickle_data/{self.prefix}data.pkl'
         
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
