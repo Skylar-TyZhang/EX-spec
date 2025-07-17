@@ -128,87 +128,97 @@ class PlotlyUSGSVisualiser:
         return fig
     
     def create_full_spectrum_plot(self, lib_obj, selected_keys: List[str],
-                                wavelength_range: Optional[Tuple[float, float]] = None,
-                                show_atmospheric_transmission: bool = False,
-                                height: int = 600) -> go.Figure:
-        """
-        Create interactive full spectrum plot with wavelength filtering
-        
-        Parameters:
-        -----------
-        lib_obj : USGSSpectra
-            Full spectrum library object
-        selected_keys : List[str]
-            List of spectrum keys to plot
-        wavelength_range : Tuple[float, float], optional
-            Wavelength range (min, max) in microns
-        show_atmospheric_transmission : bool
-            Show atmospheric transmission overlay
-        height : int
-            Figure height in pixels
+                                    wavelength_range: Optional[Tuple[float, float]] = None,
+                                    show_atmospheric_transmission: bool = False,
+                                    height: int = 600) -> go.Figure:
+            """
+            Create interactive full spectrum plot with wavelength filtering
+            Updated to work with USGSSpectralLibrary structure
             
-        Returns:
-        --------
-        plotly.graph_objects.Figure
-            Interactive Plotly figure
-        """
-        
-        fig = make_subplots(specs=[[{"secondary_y": True}]])  # Enable secondary y-axis
-        
-        # Determine wavelength range for atmospheric data
-        plot_wavelengths = lib_obj.wavelengths
-        if wavelength_range:
-            mask = (plot_wavelengths >= wavelength_range[0]) & (plot_wavelengths <= wavelength_range[1])
-            plot_wavelengths = plot_wavelengths[mask]
-        
-        # Add atmospheric transmission first (background layer)
-        if show_atmospheric_transmission:
-            self._add_atmospheric_transmission(fig, plot_wavelengths)
+            Parameters:
+            -----------
+            lib_obj : USGSSpectralLibrary
+                Full spectrum library object
+            selected_keys : List[str]
+                List of spectrum keys to plot
+            wavelength_range : Tuple[float, float], optional
+                Wavelength range (min, max) in microns
+            show_atmospheric_transmission : bool
+                Show atmospheric transmission overlay
+            height : int
+                Figure height in pixels
+                
+            Returns:
+            --------
+            plotly.graph_objects.Figure
+                Interactive Plotly figure
+            """
             
-        for i, key in enumerate(selected_keys):
-            if key in lib_obj.spectra:
-                spectrum = lib_obj.spectra[key]['spectrum']
-                metadata = lib_obj.spectra[key]['metadata']
-                wavelengths = lib_obj.wavelengths
+            fig = make_subplots(specs=[[{"secondary_y": True}]])  # Enable secondary y-axis
+            
+            # Determine wavelength range for atmospheric data
+            if selected_keys and lib_obj.spectra:
+                # Get wavelength range from first spectrum
+                first_key = selected_keys[0]
+                if first_key in lib_obj.spectra:
+                    plot_wavelengths = lib_obj.spectra[first_key]['wavelength']
+                    if wavelength_range:
+                        mask = (plot_wavelengths >= wavelength_range[0]) & (plot_wavelengths <= wavelength_range[1])
+                        plot_wavelengths = plot_wavelengths[mask]
+                else:
+                    plot_wavelengths = np.linspace(0.4, 2.5, 1000)
+            else:
+                plot_wavelengths = np.linspace(0.4, 2.5, 1000)
+            
+            # Add atmospheric transmission first (background layer)
+            if show_atmospheric_transmission:
+                self._add_atmospheric_transmission(fig, plot_wavelengths)
                 
-                # Apply wavelength filtering
-                if wavelength_range:
-                    mask = (wavelengths >= wavelength_range[0]) & (wavelengths <= wavelength_range[1])
-                    wavelengths = wavelengths[mask]
-                    spectrum = spectrum[mask]
-                
-                # Create detailed hover information
-                hover_text = [
-                    f"Wavelength: {wl:.3f} μm<br>"
-                    f"Value: {val:.4f}<br>"
-                    #f"Material: {metadata['material']}<br>"
-                    #f"Sample: {metadata['sample_id']}<br>"
-                    #f"Spectrometer: {metadata['spectrometer']}<br>"
-                    #f"Type: {metadata['measurement_type']}"
-                    for wl, val in zip(wavelengths, spectrum)
-                ]
-                
-                color = self.default_colors[i % len(self.default_colors)]
-                
-                # Add spectrum trace 
-                fig.add_trace(
-                    go.Scatter(
-                        x=wavelengths,
-                        y=spectrum,
-                        mode='lines',
-                        name=f"{metadata['material']} {metadata['sample_id']}",
-                        line=dict(color=color, width=2),
-                        hovertext=hover_text,
-                        hoverinfo='text',
-                        connectgaps=False,  # Don't connect across NaN values
-                        showlegend=True  
+            for i, key in enumerate(selected_keys):
+                if key in lib_obj.spectra:
+                    data = lib_obj.spectra[key]
+                    spectrum = data['spectrum']
+                    metadata = data['metadata']
+                    wavelengths = data['wavelength']
+                    
+                    # Apply wavelength filtering
+                    if wavelength_range:
+                        mask = (wavelengths >= wavelength_range[0]) & (wavelengths <= wavelength_range[1])
+                        wavelengths = wavelengths[mask]
+                        spectrum = spectrum[mask]
+                    
+                    # Create detailed hover information
+                    hover_text = [
+                        f"Wavelength: {wl:.3f} μm<br>"
+                        f"Value: {val:.4f}<br>"
+                        f"Material: {metadata['material']}<br>"
+                        f"Sample: {metadata.get('sample_id', 'N/A')}<br>"
+                        f"Spectrometer: {metadata['spectrometer']}<br>"
+                        f"Type: {metadata['measurement_type']}"
+                        for wl, val in zip(wavelengths, spectrum)
+                    ]
+                    
+                    color = self.default_colors[i % len(self.default_colors)]
+                    
+                    # Add spectrum trace 
+                    fig.add_trace(
+                        go.Scatter(
+                            x=wavelengths,
+                            y=spectrum,
+                            mode='lines',
+                            name=f"{metadata['material']} {metadata.get('sample_id', 'N/A')}",
+                            line=dict(color=color, width=2),
+                            hovertext=hover_text,
+                            hoverinfo='text',
+                            connectgaps=False,  # Don't connect across NaN values
+                            showlegend=True  
+                        )
                     )
-                )
-        
-        # Update layout for full spectrum
-        self._update_full_spectrum_layout(fig, lib_obj, height, wavelength_range)
-        
-        return fig
+            
+            # Update layout for full spectrum
+            self._update_full_spectrum_layout(fig, lib_obj, height, wavelength_range)
+            
+            return fig
     
     def create_band_response_plot(self, lib_obj, height: int = 500) -> go.Figure:
         """
@@ -441,7 +451,7 @@ class PlotlyUSGSVisualiser:
             range_text = f" ({wavelength_range[0]:.1f}-{wavelength_range[1]:.1f} μm)"
         
         fig.update_layout(
-            title=f"{lib_obj.spectrometer} Full Spectrum Analysis{range_text}",
+            title=f"Full Spectrum Analysis{range_text}",
             height=height,
             hovermode='x unified',
             showlegend=True,  
