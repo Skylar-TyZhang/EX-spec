@@ -193,8 +193,8 @@ class PlotlyUSGSVisualiser:
                         f"Value: {val:.4f}<br>"
                         f"Material: {metadata['material']}<br>"
                         f"Sample: {metadata.get('sample_id', 'N/A')}<br>"
-                        f"Spectrometer: {metadata['spectrometer']}<br>"
-                        f"Type: {metadata['measurement_type']}"
+                        #f"Spectrometer: {metadata['spectrometer']}<br>"
+                        #f"Type: {metadata['measurement_type']}"
                         for wl, val in zip(wavelengths, spectrum)
                     ]
                     

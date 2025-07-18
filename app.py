@@ -11,7 +11,7 @@ import os
 
 # Import the USGS Spectra classes
 from USGSSatelliteSpectra import USGSSatelliteSpectra
-from USGSSpectralLibrary import USGSSpectralLibrary  
+from USGSSpectralLibrary import USGSSpectralLibrary  # Updated import
 
 # Import the Plotly visualiser
 from USGSPlotly import PlotlyUSGSVisualiser
@@ -516,7 +516,7 @@ def server(input, output, session):
     @output
     @render.data_frame
     def full_spectrum_selected_mineral_table():
-        """Display data for selected full spectrum minerals with enhanced metadata"""
+        """Display data for selected full spectrum minerals with enhanced metadata and HTML file paths"""
         if not current_full_spectrum_lib():
             return pd.DataFrame({"Status": ["No full spectrum data loaded"]})
         
@@ -546,6 +546,13 @@ def server(input, output, session):
                                     (wavelengths <= input.wavelength_range()[1])
                     filtered_spectrum = spectrum[wavelength_mask]
                     
+                    # Get HTML file path or indicate not available
+                    html_status = 'No'
+                    html_file_path = 'N/A'
+                    if metadata.get('html_file_path'):
+                        html_file_path = metadata['html_file_path']
+                        html_status = 'Yes'
+                    
                     table_data.append({
                         'Sample_Key': key,
                         'Material': metadata['material'],
@@ -556,12 +563,10 @@ def server(input, output, session):
                         'Formula': metadata.get('formula', 'N/A'),
                         'Grain_Size': metadata.get('grain_size', 'N/A'),
                         'Chapter': metadata.get('chapter', 'N/A'),
-                        'Mean_Value': np.nanmean(filtered_spectrum),
-                        'Std_Value': np.nanstd(filtered_spectrum),
-                        'Min_Value': np.nanmin(filtered_spectrum),
-                        'Max_Value': np.nanmax(filtered_spectrum),
-                        'Wavelength_Range': f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm",
-                        'HTML_Available': 'Yes' if metadata.get('html_file_path') else 'No'
+                        'Mineral_Type': metadata.get('mineral_type', 'N/A'),
+
+                        'HTML_Available': html_status,
+                        'HTML_File_Path': html_file_path
                     })
             
             df = pd.DataFrame(table_data)
