@@ -2,38 +2,55 @@ import os
 import re
 import pickle
 import numpy as np
+from pathlib import Path
+
 class USGSUtils:
     def __init__(self, data_dir, prefix):
         """
         Initialise the Utils class with data directory and prefix.
         
         :param data_dir: Directory where data files are stored.
+        :param prefix: Prefix for the data files.
         """
-        self.data_dir = data_dir
+        self.data_dir = Path(data_dir)
         self.prefix = prefix
         self.spectra = {}
+        # Ensure pickle directory exists
+        pickle_dir = Path('pickle_data')
+        pickle_dir.mkdir(exist_ok=True)
         # print(f"USGSUtils initialized with data directory: {data_dir} and prefix: {prefix}")
             
-    def save_to_pickle(self, data):
+    def save_to_pickle(self, data, description=None):
         """
         Save data to a pickle file.
         
         :param data: Data to be saved.
-        :param filename: Name of the file where data will be saved.
+        :param description: Description to add to filename (optional).
         """
-        filename = f'pickle_data/{self.prefix}data.pkl'
+        if description:
+            filename = f'pickle_data/{self.prefix}{description}_data.pkl'
+        else:
+            filename = f'pickle_data/{self.prefix}data.pkl'
+        
+        # Ensure the directory exists
+        Path(filename).parent.mkdir(parents=True, exist_ok=True)
         
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
+        print(f"Saved data to {filename}")
             
-    def load_from_pickle(self):
+    def load_from_pickle(self, description=None):
         """
         Load data from a pickle file.
         
-        :param filename: Name of the file from which data will be loaded.
+        :param description: Description in filename (optional).
         :return: Loaded data.
         """
-        filename = f'pickle_data/{self.prefix}data.pkl'
+        if description:
+            filename = f'pickle_data/{self.prefix}{description}_data.pkl'
+        else:
+            filename = f'pickle_data/{self.prefix}data.pkl'
+        
         with open(filename, 'rb') as f:
             data = pickle.load(f)
             return data
@@ -103,6 +120,8 @@ class USGSUtils:
         # Find all spectrum files
         spectrum_files = list(minerals_dir.glob(f"{self.prefix}*.txt"))
         
+        if max_samples and max_samples < len(spectrum_files):
+            spectrum_files = spectrum_files[:max_samples]
         
         print(f"Found {len(spectrum_files)} mineral spectra files")
         

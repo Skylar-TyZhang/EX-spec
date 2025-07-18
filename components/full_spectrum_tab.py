@@ -1,6 +1,6 @@
 from shiny import ui
 
-def get_full_spectrum_tab(mineral_families, default_collection, default_spectrometer):
+def get_full_spectrum_tab(mineral_families, default_collection):
     """Return the full spectrum data tab component"""
     return ui.nav_panel(
         "Full Spectrum Data",
@@ -8,7 +8,7 @@ def get_full_spectrum_tab(mineral_families, default_collection, default_spectrom
             {"class": "tab-content"},
             
             # Control Panel for Full Spectrum Data
-            _get_full_spectrum_control_panel(mineral_families, default_collection, default_spectrometer),
+            _get_full_spectrum_control_panel(mineral_families, default_collection),
             
             # Main Content
             ui.div(
@@ -19,34 +19,84 @@ def get_full_spectrum_tab(mineral_families, default_collection, default_spectrom
         )
     )
 
-def _get_full_spectrum_control_panel(mineral_families, default_collection, default_spectrometer):
+def _get_full_spectrum_control_panel(mineral_families, default_collection):
     """Full spectrum control panel component"""
     return ui.div(
         {"class": "card control-card"},
         ui.h3("Full Spectrum Control Panel", style="margin-top: 0;"),
         
         ui.layout_columns(
-            # Collection and Spectrometer Selection
+            # Search and Material Selection
             ui.div(
-                #ui.h5("Data Collection"),
-                #ui.input_select(
-                #    "collection",
-                #    "Collection:",
-                #    choices=["a", "b"],
-                #    selected=default_collection
-                #),
+                ui.h5("Search & Selection"),
+                ui.input_text(
+                    "material_search",
+                    "Search Materials:",
+                    placeholder="Type to search materials...",
+                    value=""
+                ),
+                ui.input_select(
+                    "full_spectrum_mineral_families",
+                    "Mineral Families:",
+                    choices=mineral_families if mineral_families else ["Loading..."],
+                    selected=mineral_families[:min(3, len(mineral_families))] if mineral_families else None,
+                    multiple=True,
+                    size="4"
+                )
+            ),
+            
+            # Wavelength Range Control
+            ui.div(
+                ui.h5("Wavelength Range"),
+                ui.input_slider(
+                    "wavelength_range",
+                    "Range (μm):",
+                    min=0.2, max=25.0, value=[0.4, 2.5], step=0.1
+                ),
+                ui.help_text(
+                    "Drag the slider to focus on specific wavelength regions"
+                ),
+                ui.h6("Display Options", style="margin-top: 15px;"),
+                ui.input_checkbox("full_spectrum_show_atmospheric_transmission", "Show Atmospheric Transmission", value=False),
+                ui.input_slider(
+                    "full_spectrum_max_samples",
+                    "Max Samples per Family:",
+                    min=1, max=20, value=5, step=1
+                )
+            ),
+            
+            # Individual Sample Selection
+            ui.div(
+                ui.h5("Individual Samples"),
+                ui.input_select(
+                    "full_spectrum_individual_minerals",
+                    "Specific Samples:",
+                    choices=[],
+                    selected=None,
+                    multiple=True,
+                    size="5"
+                ),
+                ui.help_text(
+                    "Select specific samples for detailed analysis"
+                )
+            ),
+            
+            # Filters (Spectrometer moved here)
+            ui.div(
+                ui.h5("Filters"),
                 ui.input_select(
                     "spectrometer",
                     "Spectrometer:",
                     choices=[
-                        "BECK",    # Beckman 5270 (0.2-3.0 μm)
-                        "ASDFR",   # Standard resolution ASD (0.35-2.5 μm)
-                        "ASDHR",   # High resolution ASD (0.35-2.5 μm)
-                        "ASDNG",   # High resolution next gen ASD (0.35-2.5 μm)
-                        "NIC4",    # Nicolet FTIR (1.12-216 μm)
-                        "AVIRIS"   # NASA AVIRIS (0.37-2.5 μm)
+                        "All",       # New option for all spectrometers
+                        "BECK",      # Beckman 5270 (0.2-3.0 μm)
+                        "ASDFR",     # Standard resolution ASD (0.35-2.5 μm)
+                        "ASDHR",     # High resolution ASD (0.35-2.5 μm)
+                        "ASDNG",     # High resolution next gen ASD (0.35-2.5 μm)
+                        "NIC4",      # Nicolet FTIR (1.12-216 μm)
+                        "AVIRIS"     # NASA AVIRIS (0.37-2.5 μm)
                     ],
-                    selected=default_spectrometer
+                    selected="All"
                 ),
                 ui.help_text(
                     ui.HTML("""
@@ -59,49 +109,17 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
                     <strong>AVIRIS:</strong> NASA AVIRIS Imaging Spectrometer (0.37-2.5 μm)
                     </div>
                     """)
-                )
-            ),
-            
-            # Mineral Family Selection (Multiple)
-            ui.div(
-                ui.h5("Mineral Families"),
-                ui.input_select(
-                    "full_spectrum_mineral_families",
-                    None,
-                    choices=mineral_families if mineral_families else ["No data loaded"],
-                    selected=mineral_families[:min(3, len(mineral_families))] if mineral_families else None,
-                    multiple=True,
-                    size="5"
-                )
-            ),
-            
-            # Individual Mineral Selection
-            ui.div(
-                ui.h5("Individual Samples"),
-                ui.input_select(
-                    "full_spectrum_individual_minerals",
-                    None,
-                    choices=[],
-                    selected=None,
-                    multiple=True,
-                    size="5"
-                )
-            ),
-            
-            # Display Options and Wavelength Range
-            ui.div(
-                ui.h5("Display Options"),
-                ui.input_slider(
-                    "full_spectrum_max_samples",
-                    "Max Samples per Family:",
-                    min=1, max=20, value=5, step=1
                 ),
-                ui.input_checkbox("full_spectrum_show_atmospheric_transmission", "Atmospheric Transmission", value=False),
-                ui.h6("Wavelength Range (μm)", style="margin-top: 15px;"),
-                ui.input_slider(
-                    "wavelength_range",
-                    None,
-                    min=0.2, max=25.0, value=[0.4, 2.5], step=0.1
+                ui.input_numeric(
+                    "min_wavelength_coverage",
+                    "Min Wavelength Coverage (%):",
+                    value=50,
+                    min=0,
+                    max=100,
+                    step=10
+                ),
+                ui.help_text(
+                    "Only show spectra with at least this % coverage of the selected wavelength range"
                 )
             ),
             
@@ -113,7 +131,7 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
     )
 
 def _get_full_spectrum_plot_card():
-    """Full spectrum visualisation plot card - removed download button since Plotly handles this"""
+    """Full spectrum visualisation plot card"""
     return ui.div(
         {"class": "card plot-card"},
         ui.output_ui("full_spectrum_main_plot", height="700px")
