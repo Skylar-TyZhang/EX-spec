@@ -28,7 +28,7 @@ scikit-learn>=1.0.0
 
 # Optional: For better memory management with large datasets
 psutil>=5.8.0
-
+BeautifulSoup4>= 4.11.0
 # Web framework dependencies (automatically installed with shiny)
 # These are typically installed automatically with shiny but listing for clarity
 starlette>=0.27.0
