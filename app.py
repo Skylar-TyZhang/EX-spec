@@ -107,14 +107,7 @@ app_ui = ui.page_fluid(
             
             # Usage Information Tab
             get_usage_info()
-        ),
-        
-        # Download Status
-        ui.div(
-            {"class": "card"},
-            ui.h5("Download Status"),
-            ui.output_text("download_status")
-        )
+        ),                
     )
 )
 
@@ -566,7 +559,7 @@ def server(input, output, session):
                         'Mineral_Type': metadata.get('mineral_type', 'N/A'),
 
                         'HTML_Available': html_status,
-                        'HTML_File_Path': html_file_path
+                        'HTML_File_Path': ui.HTML(html_file_path)
                     })
             
             df = pd.DataFrame(table_data)
