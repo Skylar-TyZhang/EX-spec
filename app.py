@@ -553,8 +553,8 @@ def server(input, output, session):
         filename=lambda: f"{current_full_spectrum_lib().spectrometer if current_full_spectrum_lib() else 'unknown'}_full-spectrum.csv"
     )
     async def download_full_spectrum_table():
-        """Download selected full spectrum mineral data using async generator"""
-        if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
+        """Download selected full spectrum mineral data in wide format (one row per spectrum)"""
+        if not current_full_spectrum_lib():
             yield "Error,Message\n"
             yield "No Data,No full spectrum data available for download\n"
             return
@@ -573,50 +573,111 @@ def server(input, output, session):
                 yield "No Selection,No minerals selected\n"
                 return
             
-            # Yield CSV header
-            yield "Sample_Key,Material,Sample_ID,Spectrometer,Purity,Measurement_Type,Collection,Wavelength_um,Spectral_Value,Wavelength_Range\n"
-            
             # Update status
-            download_message.set(f"🔄 Generating full spectrum data for {len(selected_keys)} samples...")
+            download_message.set(f"🔄 Generating wide format data for {len(selected_keys)} samples...")
+            
+            # First pass: determine common wavelength grid
+            # We'll use the wavelength range filter
+            if input.wavelength_range():
+                min_wl, max_wl = input.wavelength_range()
+            else:
+                min_wl, max_wl = 0.2, 25.0
+            
+            # Get wavelengths from first spectrum as reference
+            reference_wavelengths = None
+            for key in selected_keys:
+                if key in lib_obj.spectra:
+                    data = lib_obj.spectra[key]
+                    wavelengths = data['wavelength']
+                    mask = (wavelengths >= min_wl) & (wavelengths <= max_wl)
+                    reference_wavelengths = wavelengths[mask]
+                    break
+            
+            if reference_wavelengths is None or len(reference_wavelengths) == 0:
+                yield "Error,Message\n"
+                yield "No Data,No wavelength data available\n"
+                return
+            
+            # Create header with metadata columns and wavelength columns
+            metadata_columns = [
+                "Sample_Key", "Material", "Sample_ID", "Spectrometer", "Purity", 
+                "Measurement_Type", "Chapter", "Formula", "Grain_Size", "Mineral_Type",
+                "Wavelength_Range", "HTML_File_Path"
+            ]
+            
+            # Add wavelength columns (formatted to 4 decimal places)
+            wavelength_columns = [f"WL_{wl:.4f}" for wl in reference_wavelengths]
+            
+            header = ",".join(metadata_columns + wavelength_columns) + "\n"
+            yield header
+            
+            await asyncio.sleep(0.01)
             
             # Process each sample
             processed_count = 0
-            wavelength_range_str = f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm" if input.wavelength_range() else "Full Range"
+            wavelength_range_str = f"{min_wl:.2f}-{max_wl:.2f} μm"
             
             for key in selected_keys:
                 if key in lib_obj.spectra:
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    metadata = lib_obj.spectra[key]['metadata']
-                    wavelengths = lib_obj.wavelengths
+                    data = lib_obj.spectra[key]
+                    spectrum = data['spectrum']
+                    metadata = data['metadata']
+                    wavelengths = data['wavelength']
                     
-                    # Apply wavelength filtering if specified
-                    if input.wavelength_range():
-                        mask = (wavelengths >= input.wavelength_range()[0]) & (wavelengths <= input.wavelength_range()[1])
-                        wavelengths = wavelengths[mask]
-                        spectrum = spectrum[mask]
+                    # Apply wavelength filtering
+                    mask = (wavelengths >= min_wl) & (wavelengths <= max_wl)
+                    filtered_wavelengths = wavelengths[mask]
+                    filtered_spectrum = spectrum[mask]
                     
-                    # Process in batches
-                    for i, (wl, val) in enumerate(zip(wavelengths, spectrum)):
-                        row = f"{key},{metadata['material']},{metadata['sample_id']},{metadata['spectrometer']},{metadata['purity']},{metadata['measurement_type']},{lib_obj.collection},{wl},{val},{wavelength_range_str}\n"
-                        yield row
-                        
-                        # Small delay every 200 rows for full spectrum (larger datasets)
-                        if i % 200 == 0:
-                            await asyncio.sleep(0.001)
+                    # Interpolate spectrum to reference wavelengths if needed
+                    if not np.array_equal(filtered_wavelengths, reference_wavelengths):
+                        from scipy.interpolate import interp1d
+                        valid_idx = ~np.isnan(filtered_spectrum)
+                        if np.sum(valid_idx) >= 2:
+                            f = interp1d(filtered_wavelengths[valid_idx], filtered_spectrum[valid_idx],
+                                    kind='linear', bounds_error=False, fill_value=np.nan)
+                            interpolated_spectrum = f(reference_wavelengths)
+                        else:
+                            interpolated_spectrum = np.full_like(reference_wavelengths, np.nan)
+                    else:
+                        interpolated_spectrum = filtered_spectrum
+                    
+                    # Build metadata row
+                    html_path = metadata.get('html_file_path', 'N/A')
+                    metadata_values = [
+                        key,
+                        metadata['material'],
+                        metadata.get('sample_id', 'N/A'),
+                        metadata['spectrometer'],
+                        metadata['purity'],
+                        metadata['measurement_type'],
+                        metadata.get('chapter', 'N/A'),
+                        metadata.get('formula', 'N/A'),
+                        metadata.get('grain_size', 'N/A'),
+                        metadata.get('mineral_type', 'N/A'),
+                        wavelength_range_str,
+                        html_path
+                    ]
+                    
+                    # Add spectrum values
+                    spectrum_values = [f"{val:.6f}" if not np.isnan(val) else "NaN" 
+                                    for val in interpolated_spectrum]
+                    
+                    row = ",".join(map(str, metadata_values + spectrum_values)) + "\n"
+                    yield row
                     
                     processed_count += 1
                     
                     # Update progress periodically
-                    if processed_count % 3 == 0:
-                        download_message.set(f"🔄 Processing full spectrum data: {processed_count}/{len(selected_keys)} samples...")
+                    if processed_count % 5 == 0:
+                        download_message.set(f"🔄 Processing wide format: {processed_count}/{len(selected_keys)} samples...")
                         await asyncio.sleep(0.01)
             
             # Final status update
-            total_rows = sum(len(lib_obj.spectra[key]['spectrum']) for key in selected_keys if key in lib_obj.spectra)
-            download_message.set(f"✅ Full spectrum data download completed ({total_rows} records)")
+            download_message.set(f" Wide format data download completed ({processed_count} spectra, {len(reference_wavelengths)} wavelength points)")
             
         except Exception as e:
-            download_message.set(f"❌ Error exporting full spectrum data: {str(e)}")
+            download_message.set(f" Error exporting wide format data: {str(e)}")
             yield f"Error,{str(e)}\n"
     
     @render.download(
