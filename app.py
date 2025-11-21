@@ -279,7 +279,7 @@ def server(input, output, session):
     @output
     @render.data_frame
     def satellite_selected_mineral_table():
-        """Display data for selected satellite minerals"""
+        """Display data for selected satellite minerals including per-wavelength spectrum data"""
         if not current_satellite_lib() or not input.satellite_mineral_families():
             return pd.DataFrame({"Status": ["Select mineral families to view data"]})
         
@@ -295,29 +295,92 @@ def server(input, output, session):
             if not selected_keys:
                 return pd.DataFrame({"Status": ["No minerals selected"]})
             
-            # Create summary table
-            table_data = []
-            for key in selected_keys:
-                if key in lib_obj.spectra:
-                    metadata = lib_obj.spectra[key]['metadata']
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    
-                    table_data.append({
-                        'Sample_Key': key,
-                        'Material': metadata['material'],
-                        'Spectrometer': metadata['spectrometer'],
-                        'Purity': metadata['purity'],
-                        'Measurement_Type': metadata['measurement_type'],
-                        'Mean_Reflectance': np.nanmean(spectrum),
-                        'Std_Reflectance': np.nanstd(spectrum),
-                        'Min_Reflectance': np.nanmin(spectrum),
-                        'Max_Reflectance': np.nanmax(spectrum)
-                    })
+            # Get reference wavelengths from library
+            reference_wavelengths = getattr(lib_obj, "wavelengths", None)
+            if reference_wavelengths is None or len(reference_wavelengths) == 0:
+                # fallback to stats-only table if no wavelength grid available
+                table_data = []
+                for key in selected_keys:
+                    if key in lib_obj.spectra:
+                        metadata = lib_obj.spectra[key]['metadata']
+                        spectrum = lib_obj.spectra[key]['spectrum']
+                        table_data.append({
+                            'Sample_Key': key,
+                            'Material': metadata.get('material', 'N/A'),
+                            'Spectrometer': metadata.get('spectrometer', 'N/A'),
+                            'Purity': metadata.get('purity', 'N/A'),
+                            'Measurement_Type': metadata.get('measurement_type', 'N/A'),
+                            'Mean_Reflectance': np.nanmean(spectrum),
+                            'Std_Reflectance': np.nanstd(spectrum),
+                            'Min_Reflectance': np.nanmin(spectrum),
+                            'Max_Reflectance': np.nanmax(spectrum)
+                        })
+                df = pd.DataFrame(table_data)
+                if not df.empty:
+                    numerical_cols = df.select_dtypes(include=[np.number]).columns
+                    df[numerical_cols] = df[numerical_cols].round(4)
+                return df
             
-            df = pd.DataFrame(table_data)
+            # Create column names for wavelengths
+            wl_cols = [f"WL_{float(w):.4f}" for w in reference_wavelengths]
+            
+            table_rows = []
+            for key in selected_keys:
+                if key not in lib_obj.spectra:
+                    continue
+                data = lib_obj.spectra[key]
+                metadata = data.get('metadata', {})
+                spectrum = np.asarray(data.get('spectrum', []), dtype=float)
+                
+                # Align/interpolate to reference wavelengths if needed
+                if spectrum.shape[0] == reference_wavelengths.shape[0]:
+                    aligned = spectrum
+                else:
+                    # try to use per-sample wavelength array if available
+                    sample_wl = np.asarray(data.get('wavelength')) if data.get('wavelength') is not None else None
+                    if sample_wl is not None and sample_wl.shape[0] == spectrum.shape[0]:
+                        try:
+                            valid = ~np.isnan(spectrum)
+                            if valid.sum() >= 2:
+                                f = interp1d(sample_wl[valid], spectrum[valid], kind='linear',
+                                             bounds_error=False, fill_value=np.nan)
+                                aligned = f(reference_wavelengths)
+                            else:
+                                aligned = np.full_like(reference_wavelengths, np.nan, dtype=float)
+                        except Exception:
+                            # fallback: attempt numpy.interp (requires sorted and finite)
+                            try:
+                                aligned = np.interp(reference_wavelengths, sample_wl, np.nan_to_num(spectrum, nan=0.0))
+                                # where extrapolated values exist, set to nan if outside sample wl range
+                                aligned[(reference_wavelengths < sample_wl.min()) | (reference_wavelengths > sample_wl.max())] = np.nan
+                            except Exception:
+                                aligned = np.full_like(reference_wavelengths, np.nan, dtype=float)
+                    else:
+                        aligned = np.full_like(reference_wavelengths, np.nan, dtype=float)
+                
+                row = {
+                    'Sample_Key': key,
+                    'Material': metadata.get('material', 'N/A'),
+                    'Spectrometer': metadata.get('spectrometer', 'N/A'),
+                    'Purity': metadata.get('purity', 'N/A'),
+                    'Measurement_Type': metadata.get('measurement_type', 'N/A'),
+                    'Mean_Reflectance': np.nanmean(aligned),
+                    'Std_Reflectance': np.nanstd(aligned),
+                    'Min_Reflectance': np.nanmin(aligned),
+                    'Max_Reflectance': np.nanmax(aligned)
+                }
+                
+                # add spectrum columns
+                for col, val in zip(wl_cols, aligned):
+                    row[col] = np.nan if np.isnan(val) else float(val)
+                
+                table_rows.append(row)
+            
+            df = pd.DataFrame(table_rows)
             if not df.empty:
+                # round numeric columns (including spectrum columns) to sensible precision
                 numerical_cols = df.select_dtypes(include=[np.number]).columns
-                df[numerical_cols] = df[numerical_cols].round(4)
+                df[numerical_cols] = df[numerical_cols].round(6)
             
             return df
         except Exception as e:
