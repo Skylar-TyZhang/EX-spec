@@ -310,10 +310,6 @@ def server(input, output, session):
                             'Spectrometer': metadata.get('spectrometer', 'N/A'),
                             'Purity': metadata.get('purity', 'N/A'),
                             'Measurement_Type': metadata.get('measurement_type', 'N/A'),
-                            'Mean_Reflectance': np.nanmean(spectrum),
-                            'Std_Reflectance': np.nanstd(spectrum),
-                            'Min_Reflectance': np.nanmin(spectrum),
-                            'Max_Reflectance': np.nanmax(spectrum)
                         })
                 df = pd.DataFrame(table_data)
                 if not df.empty:
@@ -364,10 +360,7 @@ def server(input, output, session):
                     'Spectrometer': metadata.get('spectrometer', 'N/A'),
                     'Purity': metadata.get('purity', 'N/A'),
                     'Measurement_Type': metadata.get('measurement_type', 'N/A'),
-                    'Mean_Reflectance': np.nanmean(aligned),
-                    'Std_Reflectance': np.nanstd(aligned),
-                    'Min_Reflectance': np.nanmin(aligned),
-                    'Max_Reflectance': np.nanmax(aligned)
+                    
                 }
                 
                 # add spectrum columns
@@ -534,10 +527,6 @@ def server(input, output, session):
                         'Spectrometer': metadata['spectrometer'],
                         'Purity': metadata['purity'],
                         'Measurement_Type': metadata['measurement_type'],
-                        'Mean_Reflectance': np.nanmean(filtered_spectrum),
-                        'Std_Reflectance': np.nanstd(filtered_spectrum),
-                        'Min_Reflectance': np.nanmin(filtered_spectrum),
-                        'Max_Reflectance': np.nanmax(filtered_spectrum),
                         'Wavelength_Range': f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm"
                     })
             
