@@ -378,6 +378,114 @@ def server(input, output, session):
             return df
         except Exception as e:
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
+
+    @render.download(
+        filename=lambda: f"{input.satellite()}_selected_minerals.csv"
+    )
+    async def download_satellite_selected_table():
+        """Download the satellite_selected_mineral_table as CSV (async generator)"""
+        if not current_satellite_lib() or not input.satellite_mineral_families():
+            yield "Error,Message\n"
+            yield "No Data,Select mineral families to enable download\n"
+            return
+
+        try:
+            lib_obj = current_satellite_lib()
+
+            # Get selected minerals
+            if input.satellite_individual_minerals():
+                selected_keys = input.satellite_individual_minerals()
+            else:
+                selected_keys = get_filtered_satellite_minerals()
+
+            if not selected_keys:
+                yield "Error,Message\n"
+                yield "No Selection,No minerals selected\n"
+                return
+
+            # Get reference wavelengths from library
+            reference_wavelengths = getattr(lib_obj, "wavelengths", None)
+            if reference_wavelengths is None or len(reference_wavelengths) == 0:
+                # Emit metadata-only CSV
+                header = "Sample_Key,Material,Spectrometer,Purity,Measurement_Type\n"
+                yield header
+                for i, key in enumerate(selected_keys, start=1):
+                    if key not in lib_obj.spectra:
+                        continue
+                    metadata = lib_obj.spectra[key]['metadata']
+                    row = [
+                        key,
+                        metadata.get('material', 'N/A'),
+                        metadata.get('spectrometer', 'N/A'),
+                        metadata.get('purity', 'N/A'),
+                        metadata.get('measurement_type', 'N/A')
+                    ]
+                    yield ",".join(map(str, row)) + "\n"
+                    if i % 5 == 0:
+                        download_message.set(f"Generating CSV: {i}/{len(selected_keys)} samples...")
+                        await asyncio.sleep(0.01)
+                download_message.set(f"Download complete ({len(selected_keys)} samples)")
+                return
+
+            # Build CSV header with wavelength columns
+            wl_cols = [f"WL_{float(w):.4f}" for w in reference_wavelengths]
+            metadata_columns = ["Sample_Key", "Material", "Spectrometer", "Purity", "Measurement_Type"]
+            header = ",".join(metadata_columns + wl_cols) + "\n"
+            yield header
+
+            # Process each sample and yield rows
+            processed = 0
+            for key in selected_keys:
+                if key not in lib_obj.spectra:
+                    continue
+                data = lib_obj.spectra[key]
+                metadata = data.get('metadata', {})
+                spectrum = np.asarray(data.get('spectrum', []), dtype=float)
+
+                # Align/interpolate to reference wavelengths if needed
+                if spectrum.shape[0] == reference_wavelengths.shape[0]:
+                    aligned = spectrum
+                else:
+                    sample_wl = np.asarray(data.get('wavelength')) if data.get('wavelength') is not None else None
+                    if sample_wl is not None and sample_wl.shape[0] == spectrum.shape[0]:
+                        try:
+                            valid = ~np.isnan(spectrum)
+                            if valid.sum() >= 2:
+                                f = interp1d(sample_wl[valid], spectrum[valid], kind='linear',
+                                             bounds_error=False, fill_value=np.nan)
+                                aligned = f(reference_wavelengths)
+                            else:
+                                aligned = np.full_like(reference_wavelengths, np.nan, dtype=float)
+                        except Exception:
+                            try:
+                                aligned = np.interp(reference_wavelengths, sample_wl, np.nan_to_num(spectrum, nan=0.0))
+                                aligned[(reference_wavelengths < sample_wl.min()) | (reference_wavelengths > sample_wl.max())] = np.nan
+                            except Exception:
+                                aligned = np.full_like(reference_wavelengths, np.nan, dtype=float)
+                    else:
+                        aligned = np.full_like(reference_wavelengths, np.nan, dtype=float)
+
+                metadata_values = [
+                    key,
+                    metadata.get('material', 'N/A'),
+                    metadata.get('spectrometer', 'N/A'),
+                    metadata.get('purity', 'N/A'),
+                    metadata.get('measurement_type', 'N/A'),
+                ]
+
+                spectrum_values = [f"{float(v):.6f}" if not np.isnan(v) else "NaN" for v in aligned]
+                row = ",".join(map(str, metadata_values + spectrum_values)) + "\n"
+                yield row
+
+                processed += 1
+                if processed % 5 == 0:
+                    download_message.set(f"🔄 Generating CSV: {processed}/{len(selected_keys)} samples...")
+                    await asyncio.sleep(0.01)
+
+            download_message.set(f" Download complete ({processed} spectra, {len(reference_wavelengths)} wavelength points)")
+        except Exception as e:
+            download_message.set(f" Error exporting selected minerals CSV: {str(e)}")
+            yield f"Error,{str(e)}\n"
     
     # === FULL SPECTRUM TAB LOGIC ===
     @reactive.Calc
@@ -540,67 +648,7 @@ def server(input, output, session):
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
     
     # === ASYNC DOWNLOAD HANDLERS ===
-    @render.download(
-        filename=lambda: f"{input.satellite()}_data.csv"
-    )
-    async def download_satellite_table():
-        """Download selected satellite mineral data using async generator"""
-        if not current_satellite_lib() or not input.satellite_mineral_families():
-            yield "Error,Message\n"
-            yield "No Data,No satellite data available for download\n"
-            return
-        
-        try:
-            lib_obj = current_satellite_lib()
-            
-            # Get selected minerals
-            if input.satellite_individual_minerals():
-                selected_keys = input.satellite_individual_minerals()
-            else:
-                selected_keys = get_filtered_satellite_minerals()
-            
-            if not selected_keys:
-                yield "Error,Message\n"
-                yield "No Selection,No minerals selected\n"
-                return
-            
-            # Yield CSV header
-            yield "Sample_Key,Material,Sample_ID,Spectrometer,Purity,Measurement_Type,Satellite,Wavelength_um,Band_Number,Reflectance_Value\n"
-            
-            # Update status
-            download_message.set(f"🔄 Generating satellite data for {len(selected_keys)} samples...")
-            
-            # Process each sample
-            processed_count = 0
-            for key in selected_keys:
-                if key in lib_obj.spectra:
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    metadata = lib_obj.spectra[key]['metadata']
-                    
-                    # Process in batches to provide feedback
-                    for i, (wl, refl) in enumerate(zip(lib_obj.wavelengths, spectrum)):
-                        row = f"{key},{metadata['material']},{metadata['sample_id']},{metadata['spectrometer']},{metadata['purity']},{metadata['measurement_type']},{lib_obj.satellite},{wl},{i+1},{refl}\n"
-                        yield row
-                        
-                        # Small delay every 100 rows to not overwhelm
-                        if i % 100 == 0:
-                            await asyncio.sleep(0.001)
-                    
-                    processed_count += 1
-                    
-                    # Update progress periodically
-                    if processed_count % 5 == 0:
-                        download_message.set(f"🔄 Processing satellite data: {processed_count}/{len(selected_keys)} samples...")
-                        await asyncio.sleep(0.01)
-            
-            # Final status update
-            total_rows = len(selected_keys) * len(lib_obj.wavelengths)
-            download_message.set(f"✅ Satellite data download completed ({total_rows} records)")
-            
-        except Exception as e:
-            download_message.set(f"❌ Error exporting satellite data: {str(e)}")
-            yield f"Error,{str(e)}\n"
-
+    @output
     @render.download(
         filename=lambda: f"{current_full_spectrum_lib().spectrometer if current_full_spectrum_lib() else 'unknown'}_full-spectrum.csv"
     )
