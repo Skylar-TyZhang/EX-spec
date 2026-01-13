@@ -157,3 +157,96 @@ class USGSUtils:
         
         # print(f"Successfully loaded {len(self.spectra)} mineral spectra")
         return self.spectra
+    
+    def load_chapter(self, chapter_name, max_samples=None):
+        """
+        Load spectra from any chapter
+        
+        Parameters:
+        -----------
+        chapter_name : str
+            Name of the chapter directory (e.g., 'ChapterM_Minerals', 'ChapterS_Soils')
+        max_samples : int or None
+            Maximum number of samples to load (None for all)
+            
+        Returns:
+        --------
+        dict
+            Dictionary of loaded spectra
+        """
+        # Find the chapter directory
+        chapter_dir = self.data_dir / chapter_name
+        if not chapter_dir.exists():
+            raise FileNotFoundError(f"Could not find chapter directory: {chapter_dir}")
+        
+        # Find all spectrum files
+        spectrum_files = list(chapter_dir.glob(f"{self.prefix}*.txt"))
+        
+        print(f"Found {len(spectrum_files)} spectra files in {chapter_name}")
+        
+        # Load each spectrum
+        for i, filename in enumerate(spectrum_files):
+            if max_samples and i >= max_samples:
+                break
+                
+            if i % 100 == 0:
+                print(f"Loading spectrum {i+1}/{len(spectrum_files)}")
+            
+            try:
+                # Parse filename for metadata
+                metadata = self._parse_filename(str(filename))
+                if not metadata:
+                    print(f"Could not parse filename: {filename}")
+                    continue
+                
+                # Add chapter information to metadata
+                metadata['chapter'] = chapter_name
+                
+                # Load spectrum data
+                spectrum = np.loadtxt(filename, skiprows=1)
+                
+                # Replace deleted channels with NaN
+                spectrum[spectrum < -1e30] = np.nan
+                
+                # Create a unique key
+                key = f"{metadata['material']}_{metadata['sample_id']}"
+                
+                # Store the data
+                self.spectra[key] = {
+                    'metadata': metadata,
+                    'spectrum': spectrum
+                }
+                
+            except Exception as e:
+                print(f"Error loading spectrum {filename}: {str(e)}")
+        
+        return self.spectra
+
+    def load_all_chapters(self, max_samples_per_chapter=None):
+        """
+        Load spectra from all available chapters
+        
+        Parameters:
+        -----------
+        max_samples_per_chapter : int or None
+            Maximum number of samples to load per chapter (None for all)
+            
+        Returns:
+        --------
+        dict
+            Dictionary of all loaded spectra
+        """
+        # Find all chapter directories
+        chapter_dirs = [d for d in self.data_dir.iterdir() 
+                    if d.is_dir() and d.name.startswith('Chapter')]
+        
+        print(f"Found {len(chapter_dirs)} chapters: {[d.name for d in chapter_dirs]}")
+        
+        for chapter_dir in sorted(chapter_dirs):
+            try:
+                print(f"\nLoading chapter: {chapter_dir.name}")
+                self.load_chapter(chapter_dir.name, max_samples_per_chapter)
+            except Exception as e:
+                print(f"Error loading chapter {chapter_dir.name}: {str(e)}")
+        
+        return self.spectra
