@@ -20,34 +20,31 @@ class USGSUtils:
         pickle_dir.mkdir(exist_ok=True)
         # print(f"USGSUtils initialized with data directory: {data_dir} and prefix: {prefix}")
             
-    def save_to_pickle(self, data, description=None):
+    def save_to_pickle(self, data, chapter_name=None):
         """
         Save data to a pickle file.
         
         :param data: Data to be saved.
-        :param description: Description to add to filename (optional).
+        :param chapter_name: Optional chapter name to include in filename
         """
-        if description:
-            filename = f'pickle_data/{self.prefix}{description}_data.pkl'
+        if chapter_name:
+            filename = f'pickle_data/{self.prefix}{chapter_name}_data.pkl'
         else:
             filename = f'pickle_data/{self.prefix}data.pkl'
         
-        # Ensure the directory exists
-        Path(filename).parent.mkdir(parents=True, exist_ok=True)
-        
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
-        print(f"Saved data to {filename}")
-            
-    def load_from_pickle(self, description=None):
+        print(f"Saved {len(data)} spectra to {filename}")
+
+    def load_from_pickle(self, chapter_name=None):
         """
         Load data from a pickle file.
         
-        :param description: Description in filename (optional).
+        :param chapter_name: Optional chapter name to load specific chapter
         :return: Loaded data.
         """
-        if description:
-            filename = f'pickle_data/{self.prefix}{description}_data.pkl'
+        if chapter_name:
+            filename = f'pickle_data/{self.prefix}{chapter_name}_data.pkl'
         else:
             filename = f'pickle_data/{self.prefix}data.pkl'
         
