@@ -38,6 +38,16 @@ full_spectrum_mineral_families = []
 all_satellite_minerals = []
 all_full_spectrum_minerals = []
 
+AVAILABLE_CHAPTERS = {
+    'A': 'Artificial Materials',
+    'C': 'Coatings',
+    'L': 'Liquids',
+    'M': 'Minerals',
+    'O': 'Organic Compounds',
+    'S': 'Soils & Mixtures',
+    'V': 'Vegetation'
+}
+
 def initialise_libraries():
     """initialise both spectral libraries"""
     global satellite_lib, full_spectrum_lib
@@ -48,7 +58,10 @@ def initialise_libraries():
         # initialise satellite library
         satellite_lib = USGSSatelliteSpectra(BASE_DIR, DEFAULT_SATELLITE)
         
-        # Extract satellite mineral information
+        # Load multiple chapters (start with M, S, V as examples)
+        satellite_lib.load_all_chapters_pickle(chapters=['M', 'S', 'V'])
+        
+        # Extract satellite material information (now includes all chapters)
         all_satellite_minerals = list(satellite_lib.spectra.keys())
         satellite_mineral_families = []
         for key in all_satellite_minerals:

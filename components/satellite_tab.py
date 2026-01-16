@@ -52,6 +52,25 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
                 )
             ),
             
+            # Chapter Selection
+            ui.div(
+                ui.h5("Data Chapters"),
+                ui.input_checkbox_group(
+                    "satellite_chapters",
+                    None,
+                    choices={
+                        'M': 'Minerals',
+                        'S': 'Soils & Mixtures',
+                        'V': 'Vegetation',
+                        'C': 'Coatings',
+                        'L': 'Liquids',
+                        'O': 'Organic Compounds',
+                        'A': 'Artificial Materials'
+                    },
+                    selected=['M']  # Default to Minerals
+                )
+            ),
+
             # Mineral Family Selection (Multiple)
             ui.div(
                 ui.h5("Mineral Families"),

@@ -62,38 +62,44 @@ class USGSUtils:
         # Remove prefix and file extension
         parts = basename.replace(self.prefix,'').replace('.txt', '').split('_')
         
-        if len(parts) < 3:
+        if len(parts) < 2:
+            print('Pasred parts do not align with other file name patterns:', parts)
             return None
         
-        # Extract material, sample ID, and measurement info
-        material = parts[0]
-        
-        # Extract spectrometer and purity code
-        spec_code = parts[-2]
-        spec_match = re.match(r'([A-Z]+[0-9]*)([a-z]+)', spec_code)
-        
-        if not spec_match:
-            return None
+        try:
+            # Extract measurement type (always last part)
+            measurement_type = parts[-1]
             
-        spectrometer = spec_match.group(1)
-        purity = spec_match.group(2)
-        
-        # Extract sample ID (everything between material and spectrometer)
-        sample_id = '_'.join(parts[1:-2])
-        
-        # Extract measurement type
-        measurement_type = parts[-1]
-        
-        return {
-            'material': material,
-            'sample_id': sample_id,
-            'spectrometer': spectrometer,
-            'purity': purity,
-            'measurement_type': measurement_type,
-            'filename': basename,
-            'full_path': filename,
-        }
-        
+            # Extract spectrometer and purity code (second to last)
+            spec_code = parts[-2]
+            spec_match = re.match(r'([A-Z]+[0-9]*)([a-z]+)', spec_code)
+            
+            if not spec_match:
+                print(f"Warning: Could not parse spectrometer from: {spec_code}")
+                return None
+                
+            spectrometer = spec_match.group(1)
+            purity = spec_match.group(2)
+            
+            # Material is always first part
+            material = parts[0]
+            
+            # Sample ID is everything between material and spectrometer
+            # This handles cases with multiple underscores in the sample ID
+            sample_id = '_'.join(parts[1:-2]) if len(parts) > 3 else parts[1]
+            
+            return {
+                'material': material,
+                'sample_id': sample_id,
+                'spectrometer': spectrometer,
+                'purity': purity,
+                'measurement_type': measurement_type,
+                'filename': basename,
+                'full_path': filename,
+            }
+        except Exception as e:
+            print(f"Error parsing filename {basename}: {str(e)}")
+            return None
 
     def load_minerals(self, max_samples=None):
         """

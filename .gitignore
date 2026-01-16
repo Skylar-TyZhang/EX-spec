@@ -183,3 +183,6 @@ photo_images/
 photo_thumbs/
 .jpg
 README/
+
+/ASCIIdata_splib07a/
+.vscode/
