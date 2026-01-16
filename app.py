@@ -33,9 +33,10 @@ HTML_METADATA_DIR = "HTMLmetadata/"
 # Global variables to store libraries and data
 satellite_lib = None
 full_spectrum_lib = None
-satellite_mineral_families = []
+satellite_material_families = []
+satellite_chapters = []
 full_spectrum_mineral_families = []
-all_satellite_minerals = []
+all_satellite_material = []
 all_full_spectrum_minerals = []
 
 AVAILABLE_CHAPTERS = {
@@ -52,19 +53,19 @@ def initialise_libraries():
     """initialise both spectral libraries"""
     global satellite_lib, full_spectrum_lib
     global satellite_mineral_families, full_spectrum_mineral_families
-    global all_satellite_minerals, all_full_spectrum_minerals
+    global all_satellite_material, all_full_spectrum_minerals
     
     try:
         # initialise satellite library
         satellite_lib = USGSSatelliteSpectra(BASE_DIR, DEFAULT_SATELLITE)
         
-        # Load multiple chapters 
-        satellite_lib.load_all_chapters_pickle()
+        # Load all chapters by default (can be changed later by user)
+        satellite_lib.load_all_chapters_pickle(chapters=['M'])  # Start with just Minerals for speed
         
-        # Extract satellite material information (now includes all chapters)
-        all_satellite_minerals = list(satellite_lib.spectra.keys())
+        # Extract satellite material information
+        all_satellite_material = list(satellite_lib.spectra.keys())
         satellite_mineral_families = []
-        for key in all_satellite_minerals:
+        for key in all_satellite_material:
             material = satellite_lib.spectra[key]['metadata']['material']
             if material not in satellite_mineral_families:
                 satellite_mineral_families.append(material)
@@ -85,7 +86,7 @@ def initialise_libraries():
         all_full_spectrum_minerals = list(full_spectrum_lib.spectra.keys())
         full_spectrum_mineral_families = full_spectrum_lib.get_available_materials()
         
-        print(f"Satellite library: {len(all_satellite_minerals)} spectra, {len(satellite_mineral_families)} families")
+        print(f"Satellite library: {len(all_satellite_material)} spectra, {len(satellite_material_families)} families")
         print(f"Full spectrum library: {len(all_full_spectrum_minerals)} spectra, {len(full_spectrum_mineral_families)} families")
         
         # Print available spectrometers in full spectrum data
@@ -113,7 +114,7 @@ app_ui = ui.page_fluid(
         # Main Content Tabs
         ui.navset_tab(
             # Satellite Resampled Data Tab
-            get_satellite_tab(satellite_mineral_families, DEFAULT_SATELLITE),
+            get_satellite_tab(satellite_material_families, DEFAULT_SATELLITE),
             
             # Full Spectrum Data Tab
             get_full_spectrum_tab(full_spectrum_mineral_families, DEFAULT_COLLECTION),
@@ -132,29 +133,98 @@ def server(input, output, session):
     download_message = reactive.Value("")
     
     # === SATELLITE TAB LOGIC ===
+    @reactive.Effect
+    def load_satellite_chapters():
+        """Load data when chapters or satellite changes"""
+        try:
+            selected_chapters = list(input.satellite_chapters()) if input.satellite_chapters() else ['M']
+            
+            print(f"Loading chapters: {selected_chapters} for satellite: {input.satellite()}")
+            
+            new_lib = USGSSatelliteSpectra(BASE_DIR, input.satellite())
+            new_lib.load_all_chapters_pickle(chapters=selected_chapters)
+            current_satellite_lib.set(new_lib)
+            
+            # Update material family choices based on loaded chapters
+            new_families = []
+            for key in new_lib.spectra.keys():
+                material = new_lib.spectra[key]['metadata']['material']
+                if material not in new_families:
+                    new_families.append(material)
+            
+            new_families.sort()
+            
+            # Update the select input with new choices
+            ui.update_select("satellite_material_families", choices=new_families, selected=[])
+            
+        except Exception as e:
+            print(f"Error loading satellite chapters: {e}")
+    
     @reactive.Calc
-    def get_filtered_satellite_minerals():
-        """Get satellite minerals that match the selected families"""
-        if not current_satellite_lib() or not input.satellite_mineral_families():
+    def get_filtered_satellite_materials():
+        """Get satellite materials filtered by search term"""
+        if not current_satellite_lib():
             return []
         
-        filtered = []
-        for family in input.satellite_mineral_families():
-            family_minerals = [key for key in current_satellite_lib().spectra.keys() 
-                             if family in key]
-            filtered.extend(family_minerals[:input.satellite_max_samples()])
-        return filtered
+        lib_obj = current_satellite_lib()
+        all_materials = []
+        
+        for key in lib_obj.spectra.keys():
+            material = lib_obj.spectra[key]['metadata']['material']
+            if material not in all_materials:
+                all_materials.append(material)
+        
+        all_materials.sort()
+        
+        # Apply search filter if provided
+        if input.satellite_material_search():
+            search_term = input.satellite_material_search().lower()
+            all_materials = [m for m in all_materials if search_term in m.lower()]
+        
+        return all_materials
     
+    @reactive.Effect
+    def update_satellite_material_choices():
+        """Update material choices based on search"""
+        filtered_materials = get_filtered_satellite_materials()
+        
+        # Keep current selection if still valid
+        current_selection = input.satellite_material_families() or []
+        new_selection = [mat for mat in current_selection if mat in filtered_materials]
+        
+        ui.update_select(
+            "satellite_material_families",
+            choices=filtered_materials,
+            selected=new_selection
+        )
+        
     @reactive.Effect
     def update_satellite_individual_choices():
         """Update individual satellite mineral choices based on selected families"""
         choices = get_filtered_satellite_minerals()
         ui.update_select(
-            "satellite_individual_minerals",
+            "satellite_individual_material",
             choices=choices,
             selected=choices[:min(5, len(choices))] if choices else []
         )
-    
+        
+    @reactive.Calc
+    def get_filtered_satellite_minerals():
+        """Get satellite minerals that match the selected families"""
+        if not current_satellite_lib() or not input.satellite_material_families():
+            return []
+        
+        lib_obj = current_satellite_lib()
+        filtered = []
+        
+        for family in input.satellite_material_families():
+            # Get all samples for this material family
+            family_minerals = [key for key in lib_obj.spectra.keys() 
+                             if lib_obj.spectra[key]['metadata']['material'] == family]
+            filtered.extend(family_minerals)
+        
+        return filtered
+               
     @reactive.Effect
     def load_satellite_data():
         """Load data for the selected satellite"""
@@ -171,7 +241,7 @@ def server(input, output, session):
                     new_families.append(material)
             
             new_families.sort()
-            ui.update_select("satellite_mineral_families", choices=new_families)
+            ui.update_select("satellite_material_families", choices=new_families)
             
         except Exception as e:
             print(f"Error loading satellite data: {e}")
@@ -188,12 +258,19 @@ def server(input, output, session):
         lib_obj = current_satellite_lib()
         num_spectra = len(lib_obj.spectra)
         num_bands = len(lib_obj.bands) if lib_obj.bands else 0
-        num_families = len(input.satellite_mineral_families()) if input.satellite_mineral_families() else 0
+        
+        # Count selected chapters
+        selected_chapters = input.satellite_chapters() or ['M']
+        num_chapters = len(selected_chapters)
+        chapter_names = ', '.join(selected_chapters)
+        
+        # Count selected materials and samples
+        num_families = len(input.satellite_material_families()) if input.satellite_material_families() else 0
         num_samples = len(get_filtered_satellite_minerals())
         
         return ui.div(
             {"class": "status-text"},
-            ui.p(f"📡 {input.satellite()} | 📊 {num_spectra} spectra | 🎛️ {num_bands} bands | 🔬 {num_families} families | 📈 {num_samples} samples",
+            ui.p(f"📡 {input.satellite()} | 📚 Chapters: {chapter_names} | 📊 {num_spectra} total spectra | 🎛️ {num_bands} bands | 🔬 {num_families} materials selected | 📈 {num_samples} samples",
                  style="margin: 5px 0;")
         )
     
@@ -201,27 +278,27 @@ def server(input, output, session):
     @render.ui
     def satellite_main_plot():
         """Generate the interactive satellite spectral plot using Plotly"""
-        if not current_satellite_lib() or not input.satellite_mineral_families():
+        if not current_satellite_lib() or not input.satellite_material_families():
             return ui.div(
                 {"style": "text-align: center; padding: 50px; color: #666;"},
-                ui.h4("Select mineral families to view satellite spectral data"),
-                ui.p("Choose one or more mineral families from the control panel above")
+                ui.h4("Select material families to view satellite spectral data"),
+                ui.p("Choose one or more material families from the control panel above")
             )
         
         try:
             lib_obj = current_satellite_lib()
             
             # Use individual selection if available, otherwise use families
-            if input.satellite_individual_minerals():
-                selected_minerals = input.satellite_individual_minerals()
+            if input.satellite_individual_material():
+                selected_minerals = input.satellite_individual_material()
             else:
                 selected_minerals = get_filtered_satellite_minerals()
             
             if not selected_minerals:
                 return ui.div(
                     {"style": "text-align: center; padding: 50px; color: #666;"},
-                    ui.h4("No minerals selected"),
-                    ui.p("Adjust your selection criteria or increase the maximum samples per family")
+                    ui.h4("No material selected"),
+                    ui.p("Adjust your selection criteria")
                 )
             
             # Create interactive Plotly figure
@@ -292,15 +369,15 @@ def server(input, output, session):
     @render.data_frame
     def satellite_selected_mineral_table():
         """Display data for selected satellite minerals"""
-        if not current_satellite_lib() or not input.satellite_mineral_families():
-            return pd.DataFrame({"Status": ["Select mineral families to view data"]})
+        if not current_satellite_lib() or not input.satellite_material_families():
+            return pd.DataFrame({"Status": ["Select material families to view data"]})
         
         try:
             lib_obj = current_satellite_lib()
             
             # Get selected minerals
-            if input.satellite_individual_minerals():
-                selected_keys = input.satellite_individual_minerals()
+            if input.satellite_individual_material():
+                selected_keys = input.satellite_individual_material()
             else:
                 selected_keys = get_filtered_satellite_minerals()
             
@@ -317,6 +394,8 @@ def server(input, output, session):
                     table_data.append({
                         'Sample_Key': key,
                         'Material': metadata['material'],
+                        'Chapter': metadata.get('chapter', 'N/A'),
+                        'Sample_ID': metadata.get('sample_id', 'N/A'),
                         'Spectrometer': metadata['spectrometer'],
                         'Purity': metadata['purity'],
                         'Measurement_Type': metadata['measurement_type'],
@@ -334,7 +413,7 @@ def server(input, output, session):
             return df
         except Exception as e:
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
-    
+        
     # === FULL SPECTRUM TAB LOGIC (Updated for USGSSpectralLibrary) ===
     @reactive.Calc
     def get_filtered_full_spectrum_minerals():
@@ -590,7 +669,7 @@ def server(input, output, session):
     )
     async def download_satellite_table():
         """Download selected satellite mineral data using async generator"""
-        if not current_satellite_lib() or not input.satellite_mineral_families():
+        if not current_satellite_lib() or not input.satellite_material_families():
             yield "Error,Message\n"
             yield "No Data,No satellite data available for download\n"
             return
@@ -599,8 +678,8 @@ def server(input, output, session):
             lib_obj = current_satellite_lib()
             
             # Get selected minerals
-            if input.satellite_individual_minerals():
-                selected_keys = input.satellite_individual_minerals()
+            if input.satellite_individual_material():
+                selected_keys = input.satellite_individual_material()
             else:
                 selected_keys = get_filtered_satellite_minerals()
             
@@ -640,10 +719,10 @@ def server(input, output, session):
             
             # Final status update
             total_rows = len(selected_keys) * len(lib_obj.wavelengths)
-            download_message.set(f"✅ Satellite data download completed ({total_rows} records)")
+            download_message.set(f"Satellite data download completed ({total_rows} records)")
             
         except Exception as e:
-            download_message.set(f"❌ Error exporting satellite data: {str(e)}")
+            download_message.set(f"Error exporting satellite data: {str(e)}")
             yield f"Error,{str(e)}\n"
 
     @render.download(

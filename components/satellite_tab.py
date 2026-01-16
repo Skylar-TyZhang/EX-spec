@@ -41,7 +41,7 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
         ui.h3("Satellite Control Panel", style="margin-top: 0;"),
         
         ui.layout_columns(
-            # Satellite Selection
+            # Column 1: Satellite & Chapter Selection
             ui.div(
                 ui.h5("Satellite Sensor"),
                 ui.input_select(
@@ -49,12 +49,8 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
                     None,
                     choices=["ASTER", "Landsat8", "Sentinel2", "WorldView3"],
                     selected=default_satellite
-                )
-            ),
-            
-            # Chapter Selection
-            ui.div(
-                ui.h5("Data Chapters"),
+                ),
+                ui.h5("Data Chapters", style="margin-top: 15px;"),
                 ui.input_checkbox_group(
                     "satellite_chapters",
                     None,
@@ -67,44 +63,48 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
                         'O': 'Organic Compounds',
                         'A': 'Artificial Materials'
                     },
-                    selected=['M']  # Default to Minerals
-                )
-            ),
-
-            # Mineral Family Selection (Multiple)
-            ui.div(
-                ui.h5("Mineral Families"),
-                ui.input_select(
-                    "satellite_mineral_families",
-                    None,
-                    choices=mineral_families if mineral_families else ["No data loaded"],
-                    selected=mineral_families[:min(3, len(mineral_families))] if mineral_families else None,
-                    multiple=True,
-                    size="5"
-                )
+                    selected=['M']
+                ),
+                ui.help_text("Select which data chapters to load", style="font-size: 0.85em; color: #666;")
             ),
             
-            # Individual Mineral Selection
+            # Column 2: Material Selection with Search
+            ui.div(
+                ui.h5("Material Families"),
+                ui.input_text(
+                    "satellite_material_search",
+                    None,
+                    placeholder="Search materials...",
+                    value=""
+                ),
+                ui.input_select(
+                    "satellite_material_families",
+                    None,
+                    choices=mineral_families if mineral_families else ["No data loaded"],
+                    selected=[],
+                    multiple=True,
+                    size="6"
+                ),
+                ui.help_text("Type to search, then select materials", style="font-size: 0.85em; color: #666;")
+            ),
+            
+            # Column 3: Individual Sample Selection
             ui.div(
                 ui.h5("Individual Samples"),
                 ui.input_select(
-                    "satellite_individual_minerals",
+                    "satellite_individual_material",
                     None,
                     choices=[],
                     selected=None,
                     multiple=True,
-                    size="5"
-                )
+                    size="8"
+                ),
+                ui.help_text("Select specific samples for plotting", style="font-size: 0.85em; color: #666;")
             ),
             
-            # Display Options
+            # Column 4: Display Options
             ui.div(
                 ui.h5("Display Options"),
-                ui.input_slider(
-                    "satellite_max_samples",
-                    "Max Samples per Family:",
-                    min=1, max=20, value=5, step=1
-                ),
                 ui.input_checkbox("satellite_show_band_centers", "Band Centers", value=True),
                 ui.input_checkbox("satellite_show_band_ranges", "Band Ranges", value=True),
                 ui.input_checkbox("satellite_show_response_functions", "Response Functions", value=True),
@@ -122,7 +122,6 @@ def _get_satellite_spectral_plot_card():
     """Satellite spectral visualisation plot card"""
     return ui.div(
         {"class": "card plot-card"},
-        
         ui.output_ui("satellite_main_plot", height="700px")
     )
 
@@ -131,7 +130,7 @@ def _get_satellite_data_table_card():
     return ui.div(
         {"class": "card"},        
         ui.div(
-            ui.h4("Selected Satellite Mineral Data", style="margin-top: 0;"),
+            ui.h4("Selected Satellite Material Data", style="margin-top: 0;"),
             ui.div(
                 ui.download_button("download_satellite_table", "Download Data", 
                                  class_="btn-success download-btn btn-sm"),
