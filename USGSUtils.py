@@ -72,7 +72,7 @@ class USGSUtils:
             
             # Extract spectrometer and purity code (second to last)
             spec_code = parts[-2]
-            spec_match = re.match(r'([A-Z]+[0-9]*)([a-z]+)', spec_code)
+            spec_match = re.match(r'([A-Z]+[0-9]*)([A-Za-z]+)', spec_code)
             
             if not spec_match:
                 print(f"Warning: Could not parse spectrometer from: {spec_code}")
@@ -82,7 +82,7 @@ class USGSUtils:
             purity = spec_match.group(2)
             
             # Material is always first part
-            material = parts[0]
+            material = re.sub(r'[0-9]', '', parts[0])
             
             # Sample ID is everything between material and spectrometer
             # This handles cases with multiple underscores in the sample ID

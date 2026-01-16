@@ -58,8 +58,8 @@ def initialise_libraries():
         # initialise satellite library
         satellite_lib = USGSSatelliteSpectra(BASE_DIR, DEFAULT_SATELLITE)
         
-        # Load multiple chapters (start with M, S, V as examples)
-        satellite_lib.load_all_chapters_pickle(chapters=['M', 'S', 'V'])
+        # Load multiple chapters 
+        satellite_lib.load_all_chapters_pickle()
         
         # Extract satellite material information (now includes all chapters)
         all_satellite_minerals = list(satellite_lib.spectra.keys())
@@ -79,7 +79,7 @@ def initialise_libraries():
         )
         
         # Load mineral spectra from pickle or create from ASCII files
-        full_spectrum_lib.load_minerals_pickle('M')
+        full_spectrum_lib.load_all_chapters_pickle()
         
         # Extract full spectrum mineral information
         all_full_spectrum_minerals = list(full_spectrum_lib.spectra.keys())
@@ -160,7 +160,7 @@ def server(input, output, session):
         """Load data for the selected satellite"""
         try:
             new_lib = USGSSatelliteSpectra(BASE_DIR, input.satellite())
-            new_lib.load_minerals_pickle()
+            new_lib.load_all_chapters_pickle()
             current_satellite_lib.set(new_lib)
             
             # Update mineral family choices

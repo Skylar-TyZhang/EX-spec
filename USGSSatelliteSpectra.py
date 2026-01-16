@@ -142,7 +142,6 @@ class USGSSatelliteSpectra:
                 print(f"Error loading band file {band_file}: {str(e)}")
         
         print(f"Successfully loaded {len(self.bands)} band response functions")
-
             
     def get_band_info(self):
         """
