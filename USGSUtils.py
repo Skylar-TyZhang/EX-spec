@@ -82,7 +82,7 @@ class USGSUtils:
             purity = spec_match.group(2)
             
             # Material is always first part
-            material = re.sub(r'[0-9]', '', parts[0])
+            material = parts[0]
             
             # Sample ID is everything between material and spectrometer
             # This handles cases with multiple underscores in the sample ID
