@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from USGSSatelliteSpectra_v0 import USGSSatelliteSpectra
-
 
 class USGSVisualisation:
     """

@@ -346,7 +346,7 @@ class PlotlyUSGSVisualiser:
         if not lib_obj.bands or lib_obj.wavelengths is None:
             return
         
-        sorted_bands = sorted(lib_obj.bands.items())
+        sorted_bands = lib_obj.bands.items()
         band_colors = self.default_colors
         
         for i, (band_num, band_info) in enumerate(sorted_bands):
@@ -361,7 +361,7 @@ class PlotlyUSGSVisualiser:
                     fig.add_vline(
                         x=band_center,
                         line=dict(color=color, width=2, dash="dash"),
-                        annotation_text=f"B{band_num}",
+                        annotation_text=f"{band_info['band_name']}",
                         annotation_position="top",
                         row=subplot_row, col=1 if subplot_row else None
                     )
@@ -406,7 +406,7 @@ class PlotlyUSGSVisualiser:
                     fillcolor=f"rgba{tuple(list(int(color[i:i+2], 16) for i in (1, 3, 5)) + [0.4])}",
                     legendgroup='bands',
                     showlegend=False,
-                    hovertemplate=f"<b>Band {band_num}</b><br>" +
+                    hovertemplate=f"<b>band_info['band_name']</b><br>" +
                                 "Wavelength: %{x:.3f} μm<br>" +
                                 "Response: %{y:.4f}<extra></extra>"
                 ),

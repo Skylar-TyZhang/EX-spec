@@ -123,7 +123,7 @@ class USGSSatelliteSpectra:
                     band_number = parts[parts.index('Band')+1]
                     # Extract band name (everything after the satellite name)
                     band_name_parts = parts[4:]  # Skip 'SRF', 'Band', number, and satellite name
-                    band_name = '_'.join(band_name_parts) if band_name_parts else f"Band_{band_number}"
+                    band_name = band_name_parts[-1] if band_name_parts else f"B{band_number}"
                     
                     # Load the band response function
                     band_data = np.loadtxt(band_file, skiprows=1)
