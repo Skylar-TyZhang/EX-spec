@@ -38,7 +38,7 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
     """Satellite control panel component"""
     return ui.div(
         {"class": "card control-card"},
-        ui.h3("Satellite Control Panel", style="margin-top: 0;"),
+        #ui.h3("Satellite Control Panel", style="margin-top: 0;"),
         
         ui.layout_columns(
             # Column 1: Satellite & Chapter Selection
@@ -63,7 +63,7 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
                         'O': 'Organic Compounds',
                         'A': 'Artificial Materials'
                     },
-                    selected=['M']
+                    selected=[]
                 ),
                 ui.help_text("Select which data chapters to load", style="font-size: 0.85em; color: #666;")
             ),
@@ -99,7 +99,7 @@ def _get_satellite_control_panel(mineral_families, default_satellite):
                     multiple=True,
                     size="8"
                 ),
-                ui.help_text("Select specific samples for plotting", style="font-size: 0.85em; color: #666;")
+                ui.help_text("Select specific samples for plotting, the first letter indicates chapter", style="font-size: 0.85em; color: #666;")
             ),
             
             # Column 4: Display Options

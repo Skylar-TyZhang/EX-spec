@@ -406,7 +406,7 @@ class PlotlyUSGSVisualiser:
                     fillcolor=f"rgba{tuple(list(int(color[i:i+2], 16) for i in (1, 3, 5)) + [0.4])}",
                     legendgroup='bands',
                     showlegend=False,
-                    hovertemplate=f"<b>band_info['band_name']</b><br>" +
+                    hovertemplate=f"<b>{band_info['band_name']}</b><br>" +
                                 "Wavelength: %{x:.3f} μm<br>" +
                                 "Response: %{y:.4f}<extra></extra>"
                 ),
