@@ -87,7 +87,8 @@ class USGSSpectralLibrary:
     
     def load_minerals_pickle(self, chapter='M', max_samples=None):
         """
-        Load mineral spectra from pre-saved pickle files, similar to USGSSpectra
+        Load mineral spectra from pre-saved pickle files
+        Legacy method - now calls load_all_chapters_pickle
         
         Parameters:
         -----------
@@ -101,26 +102,7 @@ class USGSSpectralLibrary:
         dict
             Dictionary of loaded mineral spectra
         """
-        pickle_filename = f'pickle_data/{self.prefix}{chapter}_data.pkl'
-        
-        try:
-            with open(pickle_filename, 'rb') as f:
-                self.spectra = pickle.load(f)
-            print(f"Loaded {len(self.spectra)} spectra from pickle file: {pickle_filename}")
-            return self.spectra
-        except FileNotFoundError:
-            print(f"Pickle file not found: {pickle_filename}")
-            print("Loading from ASCII files and creating pickle...")
-            self.spectra = self.load_chapter(chapter, max_samples=max_samples)
-            self.utils.save_to_pickle(self.spectra, description=chapter)
-            print(f"Saved {len(self.spectra)} spectra to pickle file: {pickle_filename}")
-            return self.spectra
-        except Exception as e:
-            print(f"Error loading spectrum from pickle file: {str(e)}")
-            print("Loading from ASCII files...")
-            self.spectra = self.load_chapter(chapter, max_samples=max_samples)
-            self.utils.save_to_pickle(self.spectra, description=chapter)
-            return self.spectra
+        return self.load_all_chapters_pickle(chapters=[chapter], max_samples_per_chapter=max_samples)
     
     def _load_wavelength_data(self):
         """Load wavelength and bandpass data for all spectrometers"""
@@ -542,15 +524,114 @@ class USGSSpectralLibrary:
         print(f"Loaded {len(chapter_spectra)} spectra from chapter {chapter}")
         return chapter_spectra
     
-    def load_all_chapters(self, spectrometers=None, max_samples_per_chapter=None):
-        """Load spectra from all chapters"""
-        for chapter in self.chapters:
-            print(f"Loading chapter {chapter}: {self.chapters[chapter]}")
-            chapter_spectra = self.load_chapter(chapter, spectrometers, max_samples_per_chapter)
-            self.spectra.update(chapter_spectra)
+    def load_all_chapters_pickle(self, chapters=['M'], max_samples_per_chapter=None):
+        """
+        Load full spectrum data from multiple chapters with proper pickle handling
         
-        print(f"Loaded a total of {len(self.spectra)} spectra from all chapters")
-        return self.spectra
+        Parameters:
+        -----------
+        chapters : list
+            List of chapter codes to load (e.g., ['M', 'S', 'V'])
+        max_samples_per_chapter : int or None
+            Maximum number of samples per chapter
+            
+        Returns:
+        --------
+        dict
+            Dictionary of loaded spectra from all chapters
+        """
+        all_spectra = {}
+        
+        for chapter in chapters:
+            if chapter not in self.chapters:
+                print(f"Unknown chapter: {chapter}, skipping...")
+                continue
+            
+            chapter_dir_name = self.chapters[chapter]
+            pickle_file = f'pickle_data/{self.prefix}{chapter}_data.pkl'
+            
+            print(f"\n{'='*60}")
+            print(f"Processing Chapter {chapter}: {chapter_dir_name}")
+            print(f"{'='*60}")
+            
+            # Try to load from pickle first
+            try:
+                with open(pickle_file, 'rb') as f:
+                    chapter_spectra = pickle.load(f)
+                print(f"Loaded {len(chapter_spectra)} spectra from pickle: {pickle_file}")
+                
+            except FileNotFoundError:
+                print(f"Pickle file not found: {pickle_file}")
+                print(f"Loading from ASCII files...")
+                
+                # Load from ASCII files
+                chapter_spectra = self.load_chapter(chapter, max_samples=max_samples_per_chapter)
+                
+                if chapter_spectra:
+                    # Save to pickle for future use
+                    try:
+                        import os
+                        os.makedirs('pickle_data', exist_ok=True)
+                        
+                        with open(pickle_file, 'wb') as f:
+                            pickle.dump(chapter_spectra, f)
+                        print(f"Saved {len(chapter_spectra)} spectra to pickle: {pickle_file}")
+                    except Exception as save_error:
+                        print(f"Error saving pickle: {save_error}")
+                else:
+                    print(f"No spectra loaded from chapter {chapter}")
+                    continue
+                    
+            except Exception as e:
+                print(f"Error loading pickle: {str(e)}")
+                print(f"Attempting to load from ASCII files...")
+                
+                chapter_spectra = self.load_chapter(chapter, max_samples=max_samples_per_chapter)
+                
+                if chapter_spectra:
+                    try:
+                        import os
+                        os.makedirs('pickle_data', exist_ok=True)
+                        with open(pickle_file, 'wb') as f:
+                            pickle.dump(chapter_spectra, f)
+                        print(f"Saved {len(chapter_spectra)} spectra to pickle: {pickle_file}")
+                    except Exception as save_error:
+                        print(f"Error saving pickle: {save_error}")
+            
+            # Add chapter info to metadata and update keys to avoid conflicts
+            for key, spectrum_data in chapter_spectra.items():
+                if 'metadata' in spectrum_data:
+                    spectrum_data['metadata']['chapter'] = chapter_dir_name.split('_')[1]
+                # Add chapter prefix to key to avoid conflicts between chapters
+                unique_key = f"{chapter}_{key}"
+                all_spectra[unique_key] = spectrum_data
+        
+        self.spectra = all_spectra
+        print(f"\n{'='*60}")
+        print(f"Total loaded: {len(all_spectra)} spectra from {len(chapters)} chapters")
+        print(f"{'='*60}\n")
+        
+        return all_spectra
+
+    # Update the original method to use the new one
+    def load_minerals_pickle(self, chapter='M', max_samples=None):
+        """
+        Load mineral spectra from pre-saved pickle files
+        Legacy method - now calls load_all_chapters_pickle
+        
+        Parameters:
+        -----------
+        chapter : str
+            Chapter to load ('M' for minerals)
+        max_samples : int or None
+            Maximum number of samples to load (None for all)
+            
+        Returns:
+        --------
+        dict
+            Dictionary of loaded mineral spectra
+        """
+        return self.load_all_chapters_pickle(chapters=[chapter], max_samples_per_chapter=max_samples)
     
     def search_spectra(self, query, fields=None):
         """

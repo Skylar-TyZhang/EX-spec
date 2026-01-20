@@ -35,9 +35,9 @@ satellite_lib = None
 full_spectrum_lib = None
 satellite_material_families = []
 satellite_chapters = []
-full_spectrum_mineral_families = []
+full_spectrum_material_families = []
 all_satellite_material = []
-all_full_spectrum_minerals = []
+all_full_spectrum_material = []
 
 AVAILABLE_CHAPTERS = {
     'A': 'Artificial Materials',
@@ -52,26 +52,24 @@ AVAILABLE_CHAPTERS = {
 def initialise_libraries():
     """initialise both spectral libraries"""
     global satellite_lib, full_spectrum_lib
-    global satellite_mineral_families, full_spectrum_mineral_families
-    global all_satellite_material, all_full_spectrum_minerals
+    global satellite_material_families, full_spectrum_material_families
+    global all_satellite_material, all_full_spectrum_material
     
     try:
         # initialise satellite library
         satellite_lib = USGSSatelliteSpectra(BASE_DIR, DEFAULT_SATELLITE)
-        
-        # Load all chapters by default (can be changed later by user)
         satellite_lib.load_all_chapters_pickle(chapters=['M'])  # Start with just Minerals for speed
         
         # Extract satellite material information
         all_satellite_material = list(satellite_lib.spectra.keys())
-        satellite_mineral_families = []
+        satellite_material_families = []
         for key in all_satellite_material:
             material = satellite_lib.spectra[key]['metadata']['material']
-            if material not in satellite_mineral_families:
-                satellite_mineral_families.append(material)
-        satellite_mineral_families.sort()
+            if material not in satellite_material_families:
+                satellite_material_families.append(material)
+        satellite_material_families.sort()
         
-        # initialise full spectrum library with enhanced metadata support
+        # initialise full spectrum library
         data_dir = f"{BASE_DIR}/ASCIIdata_splib07{DEFAULT_COLLECTION}"
         full_spectrum_lib = USGSSpectralLibrary(
             data_dir=data_dir,
@@ -79,15 +77,21 @@ def initialise_libraries():
             html_metadata_dir=HTML_METADATA_DIR
         )
         
-        # Load mineral spectra from pickle or create from ASCII files
-        full_spectrum_lib.load_all_chapters_pickle()
+        # Load all chapters using new method
+        full_spectrum_lib.load_all_chapters_pickle(chapters=['M'])  # Start with Minerals
         
-        # Extract full spectrum mineral information
-        all_full_spectrum_minerals = list(full_spectrum_lib.spectra.keys())
-        full_spectrum_mineral_families = full_spectrum_lib.get_available_materials()
+        # Extract full spectrum material information
+        all_full_spectrum_material = list(full_spectrum_lib.spectra.keys())
+        full_spectrum_material_families = []
+        for key in all_full_spectrum_material:
+            if key in full_spectrum_lib.spectra:
+                material = full_spectrum_lib.spectra[key]['metadata']['material']
+                if material not in full_spectrum_material_families:
+                    full_spectrum_material_families.append(material)
+        full_spectrum_material_families.sort()
         
         print(f"Satellite library: {len(all_satellite_material)} spectra, {len(satellite_material_families)} families")
-        print(f"Full spectrum library: {len(all_full_spectrum_minerals)} spectra, {len(full_spectrum_mineral_families)} families")
+        print(f"Full spectrum library: {len(all_full_spectrum_material)} spectra, {len(full_spectrum_material_families)} families")
         
         # Print available spectrometers in full spectrum data
         spectrometers = full_spectrum_lib.get_available_spectrometers()
@@ -95,7 +99,7 @@ def initialise_libraries():
         
     except Exception as e:
         print(f"Error initialising libraries: {e}")
-
+        
 # initialise libraries when the app starts
 initialise_libraries()
 
@@ -117,7 +121,7 @@ app_ui = ui.page_fluid(
             get_satellite_tab(satellite_material_families, DEFAULT_SATELLITE),
             
             # Full Spectrum Data Tab
-            get_full_spectrum_tab(full_spectrum_mineral_families, DEFAULT_COLLECTION),
+            get_full_spectrum_tab(full_spectrum_material_families, DEFAULT_COLLECTION),
             
             # Usage Information Tab
             get_usage_info()
@@ -453,6 +457,83 @@ def server(input, output, session):
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
             
     # === FULL SPECTRUM TAB LOGIC (Updated for USGSSpectralLibrary) ===
+    
+    @reactive.Effect
+    def load_full_spectrum_chapters():
+        """Load data when chapters change"""
+        try:
+            selected_chapters = list(input.full_spectrum_chapters()) if input.full_spectrum_chapters() else ['M']
+            
+            print(f"Loading full spectrum chapters: {selected_chapters}")
+            
+            data_dir = f"{BASE_DIR}/ASCIIdata_splib07{DEFAULT_COLLECTION}"
+            new_lib = USGSSpectralLibrary(
+                data_dir=data_dir,
+                library_version=f'splib07{DEFAULT_COLLECTION}',
+                html_metadata_dir=HTML_METADATA_DIR
+            )
+            new_lib.load_all_chapters_pickle(chapters=selected_chapters)
+            current_full_spectrum_lib.set(new_lib)
+            
+            # Update material family choices based on loaded chapters
+            new_families = []
+            for key in new_lib.spectra.keys():
+                if key in new_lib.spectra:
+                    material = new_lib.spectra[key]['metadata']['material']
+                    if material not in new_families:
+                        new_families.append(material)
+            
+            new_families.sort()
+            
+            # Update the select input with new choices
+            ui.update_select("full_spectrum_material_families", choices=new_families, selected=[])
+            
+        except Exception as e:
+            print(f"Error loading full spectrum chapters: {e}")
+    
+    @reactive.Calc
+    def get_filtered_full_spectrum_materials():
+        """Get full spectrum materials filtered by search term"""
+        if not current_full_spectrum_lib():
+            return []
+        
+        lib_obj = current_full_spectrum_lib()
+        all_materials = []
+        
+        for key in lib_obj.spectra.keys():
+            if key in lib_obj.spectra:
+                material = lib_obj.spectra[key]['metadata']['material']
+                if material not in all_materials:
+                    all_materials.append(material)
+        
+        all_materials.sort()
+        
+        # Apply search filter if provided
+        if input.material_search():
+            search_term = input.material_search().lower()
+            all_materials = [m for m in all_materials if search_term in m.lower()]
+        
+        return all_materials
+    
+    @reactive.Effect
+    def update_full_spectrum_material_choices():
+        """Update material choices based on search"""
+        filtered_materials = get_filtered_full_spectrum_materials()
+        
+        # Keep current selection if still valid
+        current_selection = input.full_spectrum_material_families() or []
+        new_selection = [mat for mat in current_selection if mat in filtered_materials]
+        
+        ui.update_select(
+            "full_spectrum_material_families",
+            choices=filtered_materials,
+            selected=new_selection
+        )
+
+    
+    
+    
+    # === THE FOLLOWING LOGIC ARE OLD
     @reactive.Calc
     def get_filtered_full_spectrum_minerals():
         """Get full spectrum minerals that match the selected criteria"""
@@ -460,31 +541,21 @@ def server(input, output, session):
             return []
         
         lib_obj = current_full_spectrum_lib()
-        
-        # Start with all spectra
-        filtered_spectra = lib_obj.spectra.copy()
-        
-        # Apply material search filter
-        if input.material_search():
-            search_term = input.material_search().lower()
-            filtered_spectra = {
-                key: data for key, data in filtered_spectra.items()
-                if search_term in data['metadata']['material'].lower()
-            }
+        filtered = []
         
         # Apply material family filter
-        if input.full_spectrum_mineral_families():
-            filtered_spectra = {
-                key: data for key, data in filtered_spectra.items()
-                if data['metadata']['material'] in input.full_spectrum_mineral_families()
-            }
+        if input.full_spectrum_material_families():
+            for family in input.full_spectrum_material_families():
+                family_minerals = [key for key in lib_obj.spectra.keys() 
+                                 if lib_obj.spectra[key]['metadata']['material'] == family]
+                filtered.extend(family_minerals)
+        else:
+            return []
         
         # Apply spectrometer filter
         if input.spectrometer() and input.spectrometer() != "All":
-            filtered_spectra = {
-                key: data for key, data in filtered_spectra.items()
-                if data['metadata']['spectrometer'] == input.spectrometer()
-            }
+            filtered = [key for key in filtered 
+                       if lib_obj.spectra[key]['metadata']['spectrometer'] == input.spectrometer()]
         
         # Apply wavelength range filter
         if input.wavelength_range():
@@ -492,42 +563,27 @@ def server(input, output, session):
             min_coverage = input.min_wavelength_coverage() / 100.0
             
             filtered_keys = []
-            for key, data in filtered_spectra.items():
-                wavelengths = data['wavelength']
-                
-                # Calculate coverage within the selected range
-                in_range = (wavelengths >= min_wl) & (wavelengths <= max_wl)
-                coverage = np.sum(in_range) / len(wavelengths)
-                
-                if coverage >= min_coverage:
-                    filtered_keys.append(key)
-            
-            # Apply max samples per family limit
-            if input.full_spectrum_max_samples():
-                family_counts = {}
-                final_keys = []
-                
-                for key in filtered_keys:
-                    material = filtered_spectra[key]['metadata']['material']
-                    if material not in family_counts:
-                        family_counts[material] = 0
+            for key in filtered:
+                if key in lib_obj.spectra:
+                    wavelengths = lib_obj.spectra[key]['wavelength']
                     
-                    if family_counts[material] < input.full_spectrum_max_samples():
-                        final_keys.append(key)
-                        family_counts[material] += 1
-                
-                return final_keys
-            else:
-                return filtered_keys
+                    # Calculate coverage within the selected range
+                    in_range = (wavelengths >= min_wl) & (wavelengths <= max_wl)
+                    coverage = np.sum(in_range) / len(wavelengths)
+                    
+                    if coverage >= min_coverage:
+                        filtered_keys.append(key)
+            
+            return filtered_keys
         
-        return list(filtered_spectra.keys())
+        return filtered
     
     @reactive.Effect
     def update_full_spectrum_individual_choices():
         """Update individual full spectrum mineral choices based on selected criteria"""
         choices = get_filtered_full_spectrum_minerals()
         ui.update_select(
-            "full_spectrum_individual_minerals",
+            "full_spectrum_individual_material",
             choices=choices,
             selected=choices[:min(5, len(choices))] if choices else []
         )
@@ -550,11 +606,11 @@ def server(input, output, session):
             filtered_materials = lib_obj.get_available_materials()
         
         # Update the choices but keep current selection if still valid
-        current_selection = input.full_spectrum_mineral_families() or []
+        current_selection = input.full_spectrum_material_families() or []
         new_selection = [mat for mat in current_selection if mat in filtered_materials]
         
         ui.update_select(
-            "full_spectrum_mineral_families",
+            "full_spectrum_material_families",
             choices=filtered_materials,
             selected=new_selection
         )
@@ -571,6 +627,11 @@ def server(input, output, session):
         lib_obj = current_full_spectrum_lib()
         total_spectra = len(lib_obj.spectra)
         
+        # Count selected chapters
+        selected_chapters = input.full_spectrum_chapters() or ['M']
+        num_chapters = len(selected_chapters)
+        chapter_names = ', '.join(selected_chapters)
+        
         # Count spectra for current filters
         filtered_spectra = get_filtered_full_spectrum_minerals()
         num_filtered = len(filtered_spectra)
@@ -582,13 +643,14 @@ def server(input, output, session):
         wl_range = f"{input.wavelength_range()[0]:.1f}-{input.wavelength_range()[1]:.1f} μm"
         
         # Get material families count
-        num_families = len(input.full_spectrum_mineral_families()) if input.full_spectrum_mineral_families() else 0
+        num_families = len(input.full_spectrum_material_families()) if input.full_spectrum_material_families() else 0
         
         return ui.div(
             {"class": "status-text"},
-            ui.p(f"🔬 {spectrometer_info} | 📊 {num_filtered}/{total_spectra} spectra | 🔬 {num_families} families | 📏 {wl_range}",
+            ui.p(f"🔬 {spectrometer_info} | 📚 Chapters: {chapter_names} | 📊 {num_filtered}/{total_spectra} spectra | 🔬 {num_families} materials | 📏 {wl_range}",
                  style="margin: 5px 0;")
         )
+    
     
     @output
     @render.ui
@@ -605,8 +667,8 @@ def server(input, output, session):
             lib_obj = current_full_spectrum_lib()
             
             # Use individual selection if available, otherwise use filtered results
-            if input.full_spectrum_individual_minerals():
-                selected_minerals = input.full_spectrum_individual_minerals()
+            if input.full_spectrum_individual_material():
+                selected_minerals = input.full_spectrum_individual_material()
             else:
                 selected_minerals = get_filtered_full_spectrum_minerals()
             
@@ -639,7 +701,7 @@ def server(input, output, session):
     @output
     @render.data_frame
     def full_spectrum_selected_mineral_table():
-        """Display data for selected full spectrum minerals with enhanced metadata and HTML file paths"""
+        """Display metadata only for selected full spectrum minerals (no spectrum columns)"""
         if not current_full_spectrum_lib():
             return pd.DataFrame({"Status": ["No full spectrum data loaded"]})
         
@@ -647,49 +709,45 @@ def server(input, output, session):
             lib_obj = current_full_spectrum_lib()
             
             # Get selected minerals
-            if input.full_spectrum_individual_minerals():
-                selected_keys = input.full_spectrum_individual_minerals()
+            if input.full_spectrum_individual_material():
+                selected_keys = input.full_spectrum_individual_material()
             else:
                 selected_keys = get_filtered_full_spectrum_minerals()
             
             if not selected_keys:
                 return pd.DataFrame({"Status": ["No minerals match current filters"]})
             
-            # Create summary table with enhanced metadata
+            # Create summary table with metadata only (no spectrum data)
             table_data = []
             for key in selected_keys:
                 if key in lib_obj.spectra:
                     data = lib_obj.spectra[key]
                     metadata = data['metadata']
-                    spectrum = data['spectrum']
                     wavelengths = data['wavelength']
                     
-                    # Apply wavelength filter for statistics
+                    # Apply wavelength filter for range display
                     wavelength_mask = (wavelengths >= input.wavelength_range()[0]) & \
                                     (wavelengths <= input.wavelength_range()[1])
-                    filtered_spectrum = spectrum[wavelength_mask]
                     
-                    # Get HTML file path or indicate not available
-                    html_status = 'No'
-                    html_file_path = 'N/A'
-                    if metadata.get('html_file_path'):
-                        html_file_path = metadata['html_file_path']
-                        html_status = 'Yes'
+                    num_channels = np.sum(wavelength_mask)
+                    wl_min = wavelengths[wavelength_mask].min() if num_channels > 0 else np.nan
+                    wl_max = wavelengths[wavelength_mask].max() if num_channels > 0 else np.nan
                     
                     table_data.append({
                         'Sample_Key': key,
                         'Material': metadata['material'],
+                        'Chapter': metadata.get('chapter', 'N/A'),
                         'Sample_ID': metadata.get('sample_id', 'N/A'),
                         'Spectrometer': metadata['spectrometer'],
                         'Purity': metadata['purity'],
                         'Measurement_Type': metadata['measurement_type'],
                         'Formula': metadata.get('formula', 'N/A'),
                         'Grain_Size': metadata.get('grain_size', 'N/A'),
-                        'Chapter': metadata.get('chapter', 'N/A'),
                         'Mineral_Type': metadata.get('mineral_type', 'N/A'),
-
-                        'HTML_Available': html_status,
-                        'HTML_File_Path': ui.HTML(html_file_path)
+                        'Num_Channels': num_channels,
+                        'WL_Min_um': wl_min,
+                        'WL_Max_um': wl_max,
+                        'HTML_Available': 'Yes' if metadata.get('html_file_path') else 'No'
                     })
             
             df = pd.DataFrame(table_data)
@@ -786,9 +844,9 @@ def server(input, output, session):
             
     @render.download(
     filename=lambda: f"full_spectrum_{input.spectrometer()}.csv"
-    )            
+)
     async def download_full_spectrum_table():
-        """Download selected full spectrum mineral data using async generator"""
+        """Download selected full spectrum mineral data with all wavelength columns"""
         if not current_full_spectrum_lib():
             yield "Error,Message\n"
             yield "No Data,No full spectrum data available for download\n"
@@ -798,8 +856,8 @@ def server(input, output, session):
             lib_obj = current_full_spectrum_lib()
             
             # Get selected minerals
-            if input.full_spectrum_individual_minerals():
-                selected_keys = input.full_spectrum_individual_minerals()
+            if input.full_spectrum_individual_material():
+                selected_keys = input.full_spectrum_individual_material()
             else:
                 selected_keys = get_filtered_full_spectrum_minerals()
             
@@ -808,51 +866,82 @@ def server(input, output, session):
                 yield "No Selection,No minerals selected\n"
                 return
             
-            # Yield CSV header with enhanced metadata
-            yield "Sample_Key,Material,Sample_ID,Spectrometer,Purity,Measurement_Type,Chapter,Formula,Grain_Size,Wavelength_um,Spectral_Value,Wavelength_Range,HTML_Available\n"
-            
             # Update status
-            download_message.set(f"🔄 Generating full spectrum data for {len(selected_keys)} samples...")
+            await asyncio.sleep(0.01)
+            
+            # Get wavelength range for filtering
+            min_wl, max_wl = input.wavelength_range()
+            
+            # Determine all unique wavelengths across selected samples (within range)
+            all_wavelengths = set()
+            for key in selected_keys:
+                if key in lib_obj.spectra:
+                    wavelengths = lib_obj.spectra[key]['wavelength']
+                    mask = (wavelengths >= min_wl) & (wavelengths <= max_wl)
+                    all_wavelengths.update(wavelengths[mask])
+            
+            # Sort wavelengths
+            sorted_wavelengths = sorted(all_wavelengths)
+            
+            # Create header
+            metadata_cols = ['Sample_Key', 'Material', 'Chapter', 'Sample_ID', 'Spectrometer', 
+                            'Purity', 'Measurement_Type', 'Formula', 'Grain_Size']
+            wl_cols = [f"WL_{wl:.4f}" for wl in sorted_wavelengths]
+            header = ','.join(metadata_cols + wl_cols) + '\n'
+            yield header
             
             # Process each sample
             processed_count = 0
-            wavelength_range_str = f"{input.wavelength_range()[0]:.2f}-{input.wavelength_range()[1]:.2f} μm" if input.wavelength_range() else "Full Range"
-            
             for key in selected_keys:
                 if key in lib_obj.spectra:
                     data = lib_obj.spectra[key]
-                    spectrum = data['spectrum']
                     metadata = data['metadata']
+                    spectrum = data['spectrum']
                     wavelengths = data['wavelength']
                     
-                    # Apply wavelength filtering if specified
-                    if input.wavelength_range():
-                        mask = (wavelengths >= input.wavelength_range()[0]) & (wavelengths <= input.wavelength_range()[1])
-                        wavelengths = wavelengths[mask]
-                        spectrum = spectrum[mask]
+                    # Build metadata part
+                    row_parts = [
+                        key,
+                        metadata.get('material', 'N/A'),
+                        metadata.get('chapter', 'N/A'),
+                        metadata.get('spectrometer', 'N/A'),
+                        metadata.get('purity', 'N/A'),
+                        metadata.get('measurement_type', 'N/A'),
+                        metadata.get('formula', 'N/A'),
+                        metadata.get('grain_size', 'N/A')
+                    ]
                     
-                    # Process in batches
-                    for i, (wl, val) in enumerate(zip(wavelengths, spectrum)):
-                        row = f"{key},{metadata['material']},{metadata.get('sample_id', 'N/A')},{metadata['spectrometer']},{metadata['purity']},{metadata['measurement_type']},{metadata.get('chapter', 'N/A')},{metadata.get('formula', 'N/A')},{metadata.get('grain_size', 'N/A')},{wl},{val},{wavelength_range_str},{'Yes' if metadata.get('html_file_path') else 'No'}\n"
-                        yield row
-                        
-                        # Small delay every 200 rows for full spectrum (larger datasets)
-                        if i % 200 == 0:
-                            await asyncio.sleep(0.001)
+                    # Create wavelength-to-value mapping
+                    wl_value_map = {}
+                    mask = (wavelengths >= min_wl) & (wavelengths <= max_wl)
+                    for wl, val in zip(wavelengths[mask], spectrum[mask]):
+                        wl_value_map[wl] = val
+                    
+                    # Add spectrum values aligned to sorted wavelengths
+                    for wl in sorted_wavelengths:
+                        if wl in wl_value_map:
+                            val = wl_value_map[wl]
+                            if np.isnan(val):
+                                row_parts.append('')
+                            else:
+                                row_parts.append(f'{val:.6f}')
+                        else:
+                            row_parts.append('')
+                    
+                    # Create CSV row
+                    row = ','.join(str(part) for part in row_parts) + '\n'
+                    yield row
                     
                     processed_count += 1
                     
-                    # Update progress periodically
-                    if processed_count % 3 == 0:
-                        download_message.set(f"🔄 Processing full spectrum data: {processed_count}/{len(selected_keys)} samples...")
+                    # Update progress
+                    if processed_count % 5 == 0:
                         await asyncio.sleep(0.01)
             
-            # Final status update
-            total_rows = sum(len(lib_obj.spectra[key]['spectrum']) for key in selected_keys if key in lib_obj.spectra)
-            download_message.set(f"✅ Full spectrum data download completed ({total_rows} records)")
+            
             
         except Exception as e:
-            download_message.set(f"❌ Error exporting full spectrum data: {str(e)}")
+
             yield f"Error,{str(e)}\n"
     
     @render.download(
@@ -871,7 +960,7 @@ def server(input, output, session):
             
             if band_info is not None and not band_info.empty:
                 # Update status
-                download_message.set("🔄 Generating band information...")
+                
                 await asyncio.sleep(0.1)
                 
                 # Yield header
@@ -882,13 +971,13 @@ def server(input, output, session):
                     yield ",".join(str(val) for val in row.values) + "\n"
                     await asyncio.sleep(0.01)  # Small delay between rows
                 
-                download_message.set("✅ Band information download completed")
+                
             else:
                 yield "Error,Message\n"
                 yield "No Data,No band information available\n"
                 
         except Exception as e:
-            download_message.set(f"❌ Error downloading band table: {str(e)}")
+            
             yield f"Error,{str(e)}\n"
     
     @output
