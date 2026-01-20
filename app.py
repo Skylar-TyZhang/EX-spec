@@ -368,7 +368,7 @@ def server(input, output, session):
     @output
     @render.data_frame
     def satellite_selected_mineral_table():
-        """Display data for selected satellite minerals"""
+        """Display data for selected satellite minerals with spectrum values by band"""
         if not current_satellite_lib() or not input.satellite_material_families():
             return pd.DataFrame({"Status": ["Select material families to view data"]})
         
@@ -384,36 +384,74 @@ def server(input, output, session):
             if not selected_keys:
                 return pd.DataFrame({"Status": ["No minerals selected"]})
             
-            # Create summary table
-            table_data = []
-            for key in selected_keys:
-                if key in lib_obj.spectra:
-                    metadata = lib_obj.spectra[key]['metadata']
-                    spectrum = lib_obj.spectra[key]['spectrum']
-                    
-                    table_data.append({
-                        'Sample_Key': key,
-                        'Material': metadata['material'],
-                        'Chapter': metadata.get('chapter', 'N/A'),
-                        'Sample_ID': metadata.get('sample_id', 'N/A'),
-                        'Spectrometer': metadata['spectrometer'],
-                        'Purity': metadata['purity'],
-                        'Measurement_Type': metadata['measurement_type'],
-                        'Mean_Reflectance': np.nanmean(spectrum),
-                        'Std_Reflectance': np.nanstd(spectrum),
-                        'Min_Reflectance': np.nanmin(spectrum),
-                        'Max_Reflectance': np.nanmax(spectrum)
-                    })
+            # Get band information for column names
+            band_info = lib_obj.get_band_info()
             
-            df = pd.DataFrame(table_data)
+            if band_info is None or band_info.empty or lib_obj.wavelengths is None:
+                # Fallback to basic table if no band info available
+                table_data = []
+                for key in selected_keys:
+                    if key in lib_obj.spectra:
+                        metadata = lib_obj.spectra[key]['metadata']
+                        spectrum = lib_obj.spectra[key]['spectrum']
+                        table_data.append({
+                            'Sample_Key': key,
+                            'Material': metadata.get('material', 'N/A'),
+                            'Chapter': metadata.get('chapter', 'N/A'),
+                            'Sample_ID': metadata.get('sample_id', 'N/A'),
+                            'Spectrometer': metadata.get('spectrometer', 'N/A'),
+                            'Purity': metadata.get('purity', 'N/A'),
+                            'Measurement_Type': metadata.get('measurement_type', 'N/A'),
+                        })
+                return pd.DataFrame(table_data)
+            
+            # Sort band_info by Peak_Wavelength_um to ensure correct order
+            band_info = band_info.sort_values('Peak_Wavelength_um').reset_index(drop=True)
+            
+            # Create table with band columns
+            table_rows = []
+            
+            for key in selected_keys:
+                if key not in lib_obj.spectra:
+                    continue
+                
+                metadata = lib_obj.spectra[key]['metadata']
+                spectrum = lib_obj.spectra[key]['spectrum']
+                
+                # Start with metadata columns
+                row = {
+                    'Sample_Key': key,
+                    'Material': metadata.get('material', 'N/A'),
+                    'Chapter': metadata.get('chapter', 'N/A'),
+                    'Sample_ID': metadata.get('sample_id', 'N/A'),
+                    'Spectrometer': metadata.get('spectrometer', 'N/A'),
+                    'Purity': metadata.get('purity', 'N/A'),
+                    'Measurement_Type': metadata.get('measurement_type', 'N/A'),
+                }
+                
+                # Add spectrum values with band names as column headers
+                # band_info is now sorted by wavelength, so columns will be in wavelength order
+                for i, band_name in enumerate(band_info['Band_Name']):
+                    if i < len(spectrum):
+                        value = spectrum[i]
+                        row[band_name] = value if not np.isnan(value) else np.nan
+                    else:
+                        row[band_name] = np.nan
+                
+                table_rows.append(row)
+            
+            df = pd.DataFrame(table_rows)
+            
             if not df.empty:
+                # Round numeric columns to 4 decimal places
                 numerical_cols = df.select_dtypes(include=[np.number]).columns
                 df[numerical_cols] = df[numerical_cols].round(4)
             
             return df
+            
         except Exception as e:
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
-        
+            
     # === FULL SPECTRUM TAB LOGIC (Updated for USGSSpectralLibrary) ===
     @reactive.Calc
     def get_filtered_full_spectrum_minerals():
@@ -665,10 +703,10 @@ def server(input, output, session):
     
     # === ASYNC DOWNLOAD HANDLERS ===
     @render.download(
-        filename=lambda: f"{input.satellite()}_data.csv"
-    )
+    filename=lambda: f"{input.satellite()}_selected_material_spectrum.csv"
+)
     async def download_satellite_table():
-        """Download selected satellite mineral data using async generator"""
+        """Download selected satellite mineral data with band columns using async generator"""
         if not current_satellite_lib() or not input.satellite_material_families():
             yield "Error,Message\n"
             yield "No Data,No satellite data available for download\n"
@@ -688,46 +726,67 @@ def server(input, output, session):
                 yield "No Selection,No minerals selected\n"
                 return
             
-            # Yield CSV header
-            yield "Sample_Key,Material,Sample_ID,Spectrometer,Purity,Measurement_Type,Satellite,Wavelength_um,Band_Number,Reflectance_Value\n"
+            # Get band information for column names
+            band_info = lib_obj.get_band_info()
             
-            # Update status
-            download_message.set(f"🔄 Generating satellite data for {len(selected_keys)} samples...")
+            if band_info is None or band_info.empty or lib_obj.wavelengths is None:
+                # Fallback to basic CSV if no band info
+                yield "Sample_Key,Material,Chapter,Spectrometer,Purity,Measurement_Type\n"
+                
+                for key in selected_keys:
+                    if key in lib_obj.spectra:
+                        metadata = lib_obj.spectra[key]['metadata']
+                        row = f"{key},{metadata.get('material', 'N/A')},{metadata.get('chapter', 'N/A')},{metadata.get('sample_id', 'N/A')},{metadata.get('spectrometer', 'N/A')},{metadata.get('purity', 'N/A')},{metadata.get('measurement_type', 'N/A')}\n"
+                        yield row
+                return
+            
+            # Create header with band names
+            metadata_cols = ['Sample_Key', 'Material', 'Chapter', 'Spectrometer', 'Purity', 'Measurement_Type']
+            band_cols = list(band_info['Band_Name'])
+            header = ','.join(metadata_cols + band_cols) + '\n'
+            yield header
             
             # Process each sample
             processed_count = 0
             for key in selected_keys:
                 if key in lib_obj.spectra:
-                    spectrum = lib_obj.spectra[key]['spectrum']
                     metadata = lib_obj.spectra[key]['metadata']
+                    spectrum = lib_obj.spectra[key]['spectrum']
                     
-                    # Process in batches to provide feedback
-                    for i, (wl, refl) in enumerate(zip(lib_obj.wavelengths, spectrum)):
-                        row = f"{key},{metadata['material']},{metadata['sample_id']},{metadata['spectrometer']},{metadata['purity']},{metadata['measurement_type']},{lib_obj.satellite},{wl},{i+1},{refl}\n"
-                        yield row
-                        
-                        # Small delay every 100 rows to not overwhelm
-                        if i % 100 == 0:
-                            await asyncio.sleep(0.001)
+                    # Build metadata part of row
+                    row_parts = [
+                        key,
+                        metadata.get('material', 'N/A'),
+                        metadata.get('chapter', 'N/A'),
+                        metadata.get('spectrometer', 'N/A'),
+                        metadata.get('purity', 'N/A'),
+                        metadata.get('measurement_type', 'N/A')
+                    ]
+                    
+                    # Add spectrum values for each band
+                    for i in range(len(band_cols)):
+                        if i < len(spectrum):
+                            value = spectrum[i]
+                            # Format value, handle NaN
+                            if np.isnan(value):
+                                row_parts.append('')
+                            else:
+                                row_parts.append(f'{value:.6f}')
+                        else:
+                            row_parts.append('')
+                    
+                    # Create CSV row
+                    row = ','.join(str(part) for part in row_parts) + '\n'
+                    yield row
                     
                     processed_count += 1
-                    
-                    # Update progress periodically
-                    if processed_count % 5 == 0:
-                        download_message.set(f"🔄 Processing satellite data: {processed_count}/{len(selected_keys)} samples...")
-                        await asyncio.sleep(0.01)
-            
-            # Final status update
-            total_rows = len(selected_keys) * len(lib_obj.wavelengths)
-            download_message.set(f"Satellite data download completed ({total_rows} records)")
-            
-        except Exception as e:
-            download_message.set(f"Error exporting satellite data: {str(e)}")
-            yield f"Error,{str(e)}\n"
 
+        except Exception as e:
+            yield f"Error,{str(e)}\n"    
+            
     @render.download(
-        filename=lambda: f"full_spectrum_{input.spectrometer()}.csv"
-    )
+    filename=lambda: f"full_spectrum_{input.spectrometer()}.csv"
+    )            
     async def download_full_spectrum_table():
         """Download selected full spectrum mineral data using async generator"""
         if not current_full_spectrum_lib():
