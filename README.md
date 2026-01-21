@@ -1,6 +1,6 @@
 # USGS Spectral Library Visualisation Tool
 
-An interactive web application for exploring and visualising mineral spectral data from the USGS Spectral Library. This tool provides access to both satellite-resampled and full spectrum data with filtering and visualisation capabilities. The app is currently hosted on [Posit Cloud](https://connect.posit.cloud/skylar-tyzhang/content/0197561a-5093-a45b-d3bc-517663c301c9).
+An interactive web application for exploring and visualising material spectral data from the USGS Spectral Library. This tool provides access to both satellite-resampled and full spectrum data with filtering and visualisation capabilities. The app is currently hosted on [Posit Cloud](https://connect.posit.cloud/skylar-tyzhang/content/0197561a-5093-a45b-d3bc-517663c301c9).
 
 ## Features
 
@@ -11,14 +11,14 @@ An interactive web application for exploring and visualising mineral spectral da
 
 ### Advanced Selection & Filtering
 
-- Multiple mineral family selection
-- Individual sample selection within selected mineral families
+- Multiple material family selection
+- Individual sample selection within selected material families
 - Wavelength range filtering (0.2-25 μm) for full spectrum data
 - Maximum samples per family control
 
 ### Interactive Visualisations
 
-- Multi-mineral spectral plots with band overlays
+- Multi-material spectral plots with band overlays
 - Satellite band response function visualisation
 - Real-time plot updates
 - Customisable display options (band centers, ranges, response functions)
@@ -29,20 +29,6 @@ An interactive web application for exploring and visualising mineral spectral da
 - Export spectral data as CSV files
 - Band information table downloads
 
-## Data Structure
-
-The application expects the following USGS Spectral Library structure:
-
-```{md}
-ASCIIdata/
-├── ASCIIdata_splib07b/          # Collection B - Interpolated spectra
-│   └── ChapterM_Minerals/
-├── ASCIIdata_splib07b_rsASTER/  # ASTER resampled data
-├── ASCIIdata_splib07b_rsLandsat8/
-├── ASCIIdata_splib07b_rsSentinel2/
-└── ASCIIdata_splib07b_rsWorldView3/
-```
-
 ## Usage Instructions
 
 ### Using the Interface
@@ -50,15 +36,15 @@ ASCIIdata/
 #### Satellite Resampled Spectra Tab
 
 1. **Select Satellite Sensor**: Choose from ASTER, Landsat8, Sentinel2, or WorldView3
-2. **Choose Mineral Families**: Select one or more mineral families from the dropdown (if you are using PC, press Ctrl to select multiple)
+2. **Choose material chapter and family**: Select one or more material families from the dropdown (if you are using PC, press Ctrl to select multiple)
 3. **Refine Selection**: Optionally select specific individual samples
 4. **Adjust Display Options**: Toggle band centers, ranges, and response functions
 5. **View Results**: Explore the spectral plots and band information
 
 #### Full Spectrum Data Tab
 
-1. **Choose Spectrometer**: Select from available spectrometers (BECK, ASD variants, etc.)
-2. **Select Mineral Families**: Choose multiple families for comparison (if you are using PC, press Ctrl to select multiple)
+1. **Choose Spectrometer (optional)**: Select from available spectrometers (BECK, ASD variants, etc.)
+2. **Select Material Chapter and Families**: Choose multiple families for comparison (if you are using PC, press Ctrl to select multiple)
 3. **Set Wavelength Range**: Use the slider to focus on specific wavelength regions
 4. **Analyse Data**: View high-resolution spectral data and export results
 
@@ -66,7 +52,7 @@ ASCIIdata/
 
 | Control | Description |
 |---------|-------------|
-| **Mineral Families** | Multi-select dropdown for choosing mineral types |
+| **material Families** | Multi-select dropdown for choosing material types |
 | **Individual Samples** | Refined selection of specific samples |
 | **Max Samples per Family** | Limit the number of samples displayed per family |
 | **Wavelength Range** | Filter full spectrum data by wavelength (μm) |
@@ -83,7 +69,7 @@ ASCIIdata/
 │   ├── header.py                  # Application header
 │   └── ui_tags_setup.py          # CSS styling
 ├── USGSSatelliteSpectra.py     # Satellite data handler
-├── USGSSpectra.py                 # Full spectrum data handler
+├── USGSSpectralLibrary.py                 # Full spectrum data handler
 ├── USGSUtils.py                   # Utility functions
 ├── USGSVisualisation.py           # Static visualisation functions using matplotlib
 ├── USGSPlotly.py           # Interactive visualisation functions using plotly
@@ -110,8 +96,8 @@ ASCIIdata/
 ## Data Caching
 
 The application automatically caches processed data in the `pickle_data/` directory:
-- `S07{satellite}.pkl`: Cached satellite data
-- `SPLIB07{collection}_data.pkl`: Cached full spectrum data
+- `S07{satellite}{chapter}.pkl`: Cached satellite data for chosen chapter
+- `splib07b{chapter}_data.pkl`: Cached full spectrum data for chosen chapter
 
 This improves loading times for subsequent uses.
 
@@ -123,8 +109,8 @@ This improves loading times for subsequent uses.
 This tool is valuable for:
 
 - **Remote Sensing**: Satellite sensor analysis and band selection
-- **Mineral Identification**: Spectral signature comparison and analysis
-- **Geological Research**: Mineral composition studies
+- **material Identification**: Spectral signature comparison and analysis
+- **Geological Research**: material composition studies
 - **Sensor Calibration**: Understanding instrument response characteristics
 - **Education**: Teaching spectroscopy and remote sensing concepts
 
