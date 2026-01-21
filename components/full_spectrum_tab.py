@@ -1,6 +1,6 @@
 from shiny import ui
 
-def get_full_spectrum_tab(mineral_families, default_collection, default_spectrometer):
+def get_full_spectrum_tab(mineral_families, default_collection):
     """Return the full spectrum data tab component"""
     return ui.nav_panel(
         "Full Spectrum Data",
@@ -8,7 +8,7 @@ def get_full_spectrum_tab(mineral_families, default_collection, default_spectrom
             {"class": "tab-content"},
             
             # Control Panel for Full Spectrum Data
-            _get_full_spectrum_control_panel(mineral_families, default_collection, default_spectrometer),
+            _get_full_spectrum_control_panel(mineral_families, default_collection),
             
             # Main Content
             ui.div(
@@ -19,7 +19,7 @@ def get_full_spectrum_tab(mineral_families, default_collection, default_spectrom
         )
     )
 
-def _get_full_spectrum_control_panel(mineral_families, default_collection, default_spectrometer):
+def _get_full_spectrum_control_panel(mineral_families, default_collection):
     """Full spectrum control panel component"""
     return ui.div(
         {"class": "card control-card"},
@@ -124,7 +124,7 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
     )
 
 def _get_full_spectrum_plot_card():
-    """Full spectrum visualisation plot card - removed download button since Plotly handles this"""
+    """Full spectrum visualisation plot card"""
     return ui.div(
         {"class": "card plot-card"},
         ui.output_ui("full_spectrum_main_plot", height="700px")

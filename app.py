@@ -11,7 +11,7 @@ import os
 
 # Import the USGS Spectra classes
 from USGSSatelliteSpectra import USGSSatelliteSpectra
-from USGSSpectra import USGSSpectra
+from USGSSpectralLibrary import USGSSpectralLibrary  # Updated import
 
 # Import the Plotly visualiser
 from USGSPlotly import PlotlyUSGSVisualiser
@@ -28,7 +28,7 @@ from components.usage_tab import get_usage_info
 BASE_DIR = "ASCIIdata"
 DEFAULT_SATELLITE = "ASTER"
 DEFAULT_COLLECTION = "b"
-DEFAULT_SPECTROMETER = "BECK"
+HTML_METADATA_DIR = "HTMLmetadata/"  
 
 # Global variables to store libraries and data
 satellite_lib = None
@@ -449,7 +449,7 @@ def server(input, output, session):
             if not df.empty:
                 # Round numeric columns to 4 decimal places
                 numerical_cols = df.select_dtypes(include=[np.number]).columns
-                df[numerical_cols] = df[numerical_cols].round(6)
+                df[numerical_cols] = df[numerical_cols].round(4)
             
             return df
             
@@ -580,7 +580,7 @@ def server(input, output, session):
     
     @reactive.Effect
     def update_full_spectrum_individual_choices():
-        """Update individual full spectrum mineral choices based on selected families"""
+        """Update individual full spectrum mineral choices based on selected criteria"""
         choices = get_filtered_full_spectrum_minerals()
         ui.update_select(
             "full_spectrum_individual_material",
@@ -656,11 +656,11 @@ def server(input, output, session):
     @render.ui
     def full_spectrum_main_plot():
         """Generate the interactive full spectrum plot using Plotly"""
-        if not current_full_spectrum_lib() or not input.full_spectrum_mineral_families():
+        if not current_full_spectrum_lib():
             return ui.div(
                 {"style": "text-align: center; padding: 50px; color: #666;"},
-                ui.h4("Select mineral families to view full spectral data"),
-                ui.p("Choose one or more mineral families and adjust the wavelength range")
+                ui.h4("No full spectrum data loaded"),
+                ui.p("Please check the data directory and try again")
             )
         
         try:
@@ -675,8 +675,8 @@ def server(input, output, session):
             if not selected_minerals:
                 return ui.div(
                     {"style": "text-align: center; padding: 50px; color: #666;"},
-                    ui.h4("No minerals selected"),
-                    ui.p("Adjust your selection criteria or increase the maximum samples per family")
+                    ui.h4("No minerals match your current filters"),
+                    ui.p("Try adjusting your search criteria, wavelength range, or spectrometer filter")
                 )
             
             # Create interactive Plotly figure
@@ -715,7 +715,7 @@ def server(input, output, session):
                 selected_keys = get_filtered_full_spectrum_minerals()
             
             if not selected_keys:
-                return pd.DataFrame({"Status": ["No minerals selected"]})
+                return pd.DataFrame({"Status": ["No minerals match current filters"]})
             
             # Create summary table with metadata only (no spectrum data)
             table_data = []
@@ -760,7 +760,6 @@ def server(input, output, session):
             return pd.DataFrame({"Error": [f"Error creating table: {str(e)}"]})
     
     # === ASYNC DOWNLOAD HANDLERS ===
-    @output
     @render.download(
     filename=lambda: f"{input.satellite()}_selected_material_spectrum.csv"
 )

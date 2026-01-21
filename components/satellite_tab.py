@@ -132,7 +132,7 @@ def _get_satellite_data_table_card():
         ui.div(
             ui.h4("Selected Satellite Material Data", style="margin-top: 0;"),
             ui.div(
-                ui.download_button("download_satellite_selected_table", "Download Data", 
+                ui.download_button("download_satellite_table", "Download Data", 
                                  class_="btn-success download-btn btn-sm"),
                 style="float: right;"
             ),
