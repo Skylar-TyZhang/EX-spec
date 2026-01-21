@@ -1,6 +1,6 @@
 # USGS Spectral Library Visualisation Tool
 
-An interactive web application for exploring and visualising material spectral data from the USGS Spectral Library. This tool provides access to both satellite-resampled and full spectrum data with filtering and visualisation capabilities. The app is currently hosted on [Posit Cloud](https://connect.posit.cloud/skylar-tyzhang/content/0197561a-5093-a45b-d3bc-517663c301c9).
+An interactive web application for exploring and visualising material spectral data from the USGS Spectral Library. This tool provides access to both satellite-resampled and full spectrum data with filtering and visualisation capabilities. The app is currently hosted on [Posit Cloud](https://connect.posit.cloud).
 
 ## Features
 
