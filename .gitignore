@@ -179,5 +179,10 @@ aster_minerals.csv
 spec_lib.ipynb
 test.ipynb
 
-HTMLmetadata/
-.vscode/settings.json
+photo_images/
+photo_thumbs/
+.jpg
+README/
+
+/ASCIIdata_splib07a/
+.vscode/

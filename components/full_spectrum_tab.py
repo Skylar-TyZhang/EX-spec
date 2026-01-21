@@ -26,83 +26,94 @@ def _get_full_spectrum_control_panel(mineral_families, default_collection, defau
         ui.h3("Full Spectrum Control Panel", style="margin-top: 0;"),
         
         ui.layout_columns(
-            # Collection and Spectrometer Selection
+            # Column 1: Spectrometer & Chapter Selection
             ui.div(
-                #ui.h5("Data Collection"),
-                #ui.input_select(
-                #    "collection",
-                #    "Collection:",
-                #    choices=["a", "b"],
-                #    selected=default_collection
-                #),
+                ui.h5("Spectrometer"),
                 ui.input_select(
                     "spectrometer",
-                    "Spectrometer:",
-                    choices=[
-                        "BECK",    # Beckman 5270 (0.2-3.0 μm)
-                        "ASDFR",   # Standard resolution ASD (0.35-2.5 μm)
-                        "ASDHR",   # High resolution ASD (0.35-2.5 μm)
-                        "ASDNG",   # High resolution next gen ASD (0.35-2.5 μm)
-                        "NIC4",    # Nicolet FTIR (1.12-216 μm)
-                        "AVIRIS"   # NASA AVIRIS (0.37-2.5 μm)
-                    ],
-                    selected=default_spectrometer
-                ),
-                ui.help_text(
-                    ui.HTML("""
-                    <div style="font-size: 10px; color: #666; line-height: 1.2;">
-                    <strong>BECK:</strong> Beckman 5270 (0.2-3.0 μm)<br>
-                    <strong>ASDFR:</strong> ASD FieldSpec Standard Resolution (0.35-2.5 μm)<br>
-                    <strong>ASDHR:</strong> ASD FieldSpec High Resolution (0.35-2.5 μm)<br>
-                    <strong>ASDNG:</strong> ASD FieldSpec Next Generation (0.35-2.5 μm)<br>
-                    <strong>NIC4:</strong> Nicolet FTIR (1.12-216 μm)<br>
-                    <strong>AVIRIS:</strong> NASA AVIRIS Imaging Spectrometer (0.37-2.5 μm)
-                    </div>
-                    """)
-                )
-            ),
-            
-            # Mineral Family Selection (Multiple)
-            ui.div(
-                ui.h5("Mineral Families"),
-                ui.input_select(
-                    "full_spectrum_mineral_families",
                     None,
-                    choices=mineral_families if mineral_families else ["No data loaded"],
-                    selected=mineral_families[:min(3, len(mineral_families))] if mineral_families else None,
-                    multiple=True,
-                    size="5"
-                )
+                    choices=[
+                        "All",
+                        "BECK",
+                        "ASDFR",
+                        "ASDHR",
+                        "ASDNG",
+                        "NIC4",
+                        "AVIRIS"
+                    ],
+                    selected="All"
+                ),
+                ui.h5("Data Chapters", style="margin-top: 15px;"),
+                ui.input_checkbox_group(
+                    "full_spectrum_chapters",
+                    None,
+                    choices={
+                        'M': 'Minerals',
+                        'S': 'Soils & Mixtures',
+                        'V': 'Vegetation',
+                        'C': 'Coatings',
+                        'L': 'Liquids',
+                        'O': 'Organic Compounds',
+                        'A': 'Artificial Materials'
+                    },
+                    selected=['M']
+                ),
+                ui.help_text("Select which data chapters to load", style="font-size: 0.85em; color: #666;")
             ),
             
-            # Individual Mineral Selection
+            # Column 2: Material Search & Selection
+            ui.div(
+                ui.h5("Material Families"),
+                ui.input_text(
+                    "material_search",
+                    None,
+                    placeholder="Search materials...",
+                    value=""
+                ),
+                ui.input_select(
+                    "full_spectrum_material_families",
+                    None,
+                    choices=mineral_families if mineral_families else ["Loading..."],
+                    selected=[],
+                    multiple=True,
+                    size="6"
+                ),
+                ui.help_text("Type to search, then select materials", style="font-size: 0.85em; color: #666;")
+            ),
+            
+            # Column 3: Wavelength Range & Coverage
+            ui.div(
+                ui.h5("Wavelength Range"),
+                ui.input_slider(
+                    "wavelength_range",
+                    "Range (μm):",
+                    min=0.2, max=25.0, value=[0.4, 2.5], step=0.1
+                ),
+                ui.input_numeric(
+                    "min_wavelength_coverage",
+                    "Min Coverage (%):",
+                    value=50,
+                    min=0,
+                    max=100,
+                    step=10
+                ),
+                ui.help_text("Only show spectra with sufficient wavelength coverage", style="font-size: 0.85em; color: #666;"),
+                ui.h6("Display Options", style="margin-top: 15px;"),
+                ui.input_checkbox("full_spectrum_show_atmospheric_transmission", "Atmospheric Transmission", value=False)
+            ),
+            
+            # Column 4: Individual Sample Selection
             ui.div(
                 ui.h5("Individual Samples"),
                 ui.input_select(
-                    "full_spectrum_individual_minerals",
+                    "full_spectrum_individual_material",
                     None,
                     choices=[],
                     selected=None,
                     multiple=True,
-                    size="5"
-                )
-            ),
-            
-            # Display Options and Wavelength Range
-            ui.div(
-                ui.h5("Display Options"),
-                ui.input_slider(
-                    "full_spectrum_max_samples",
-                    "Max Samples per Family:",
-                    min=1, max=20, value=5, step=1
+                    size="8"
                 ),
-                ui.input_checkbox("full_spectrum_show_atmospheric_transmission", "Atmospheric Transmission", value=False),
-                ui.h6("Wavelength Range (μm)", style="margin-top: 15px;"),
-                ui.input_slider(
-                    "wavelength_range",
-                    None,
-                    min=0.2, max=25.0, value=[0.4, 2.5], step=0.1
-                )
+                ui.help_text("Select specific samples for plotting", style="font-size: 0.85em; color: #666;")
             ),
             
             col_widths=[3, 3, 3, 3]
@@ -124,7 +135,9 @@ def _get_full_spectrum_data_table_card():
     return ui.div(
         {"class": "card"},        
         ui.div(
-            ui.h4("Selected Full Spectrum Mineral Data", style="margin-top: 0;"),
+            ui.h4("Selected Full Spectrum Material Data", style="margin-top: 0;"),
+            ui.p("Note: Spectrum data available in download only (too many columns to display)", 
+                 style="font-size: 0.9em; color: #666; font-style: italic;"),
             ui.div(
                 ui.download_button("download_full_spectrum_table", "Download Data", 
                                  class_="btn-success download-btn btn-sm"),

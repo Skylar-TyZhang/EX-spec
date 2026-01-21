@@ -14,26 +14,34 @@ class USGSUtils:
         self.spectra = {}
         # print(f"USGSUtils initialized with data directory: {data_dir} and prefix: {prefix}")
             
-    def save_to_pickle(self, data):
+    def save_to_pickle(self, data, chapter_name=None):
         """
         Save data to a pickle file.
         
         :param data: Data to be saved.
-        :param filename: Name of the file where data will be saved.
+        :param chapter_name: Optional chapter name to include in filename
         """
-        filename = f'pickle_data/{self.prefix}data.pkl'
+        if chapter_name:
+            filename = f'pickle_data/{self.prefix}{chapter_name}_data.pkl'
+        else:
+            filename = f'pickle_data/{self.prefix}data.pkl'
         
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
-            
-    def load_from_pickle(self):
+        print(f"Saved {len(data)} spectra to {filename}")
+
+    def load_from_pickle(self, chapter_name=None):
         """
         Load data from a pickle file.
         
-        :param filename: Name of the file from which data will be loaded.
+        :param chapter_name: Optional chapter name to load specific chapter
         :return: Loaded data.
         """
-        filename = f'pickle_data/{self.prefix}data.pkl'
+        if chapter_name:
+            filename = f'pickle_data/{self.prefix}{chapter_name}_data.pkl'
+        else:
+            filename = f'pickle_data/{self.prefix}data.pkl'
+        
         with open(filename, 'rb') as f:
             data = pickle.load(f)
             return data
@@ -48,38 +56,44 @@ class USGSUtils:
         # Remove prefix and file extension
         parts = basename.replace(self.prefix,'').replace('.txt', '').split('_')
         
-        if len(parts) < 3:
+        if len(parts) < 2:
+            print('Pasred parts do not align with other file name patterns:', parts)
             return None
         
-        # Extract material, sample ID, and measurement info
-        material = parts[0]
-        
-        # Extract spectrometer and purity code
-        spec_code = parts[-2]
-        spec_match = re.match(r'([A-Z]+[0-9]*)([a-z]+)', spec_code)
-        
-        if not spec_match:
-            return None
+        try:
+            # Extract measurement type (always last part)
+            measurement_type = parts[-1]
             
-        spectrometer = spec_match.group(1)
-        purity = spec_match.group(2)
-        
-        # Extract sample ID (everything between material and spectrometer)
-        sample_id = '_'.join(parts[1:-2])
-        
-        # Extract measurement type
-        measurement_type = parts[-1]
-        
-        return {
-            'material': material,
-            'sample_id': sample_id,
-            'spectrometer': spectrometer,
-            'purity': purity,
-            'measurement_type': measurement_type,
-            'filename': basename,
-            'full_path': filename,
-        }
-        
+            # Extract spectrometer and purity code (second to last)
+            spec_code = parts[-2]
+            spec_match = re.match(r'([A-Z]+[0-9]*)([A-Za-z]+)', spec_code)
+            
+            if not spec_match:
+                print(f"Warning: Could not parse spectrometer from: {spec_code}")
+                return None
+                
+            spectrometer = spec_match.group(1)
+            purity = spec_match.group(2)
+            
+            # Material is always first part
+            material = parts[0]
+            
+            # Sample ID is everything between material and spectrometer
+            # This handles cases with multiple underscores in the sample ID
+            sample_id = '_'.join(parts[1:-2]) if len(parts) > 3 else parts[1]
+            
+            return {
+                'material': material,
+                'sample_id': sample_id,
+                'spectrometer': spectrometer,
+                'purity': purity,
+                'measurement_type': measurement_type,
+                'filename': basename,
+                'full_path': filename,
+            }
+        except Exception as e:
+            print(f"Error parsing filename {basename}: {str(e)}")
+            return None
 
     def load_minerals(self, max_samples=None):
         """
@@ -146,7 +160,7 @@ class USGSUtils:
         Parameters:
         -----------
         chapter_name : str
-            Name of the chapter directory (e.g., 'ChapterM_Minerals', 'ChapterS_SoilsAndMixtures')
+            Name of the chapter directory (e.g., 'ChapterM_Minerals', 'ChapterS_Soils')
         max_samples : int or None
             Maximum number of samples to load (None for all)
             

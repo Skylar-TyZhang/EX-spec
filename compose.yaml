@@ -1,0 +1,6 @@
+services:
+  exspec:
+    image: exspec
+    build:
+      context: .
+      dockerfile: ./Dockerfile

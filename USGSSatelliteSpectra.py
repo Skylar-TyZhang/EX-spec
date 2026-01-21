@@ -36,14 +36,14 @@ class USGSSatelliteSpectra:
         if not self.data_dir.exists():
             raise FileNotFoundError(f"Could not find data directory for {satellite}")
         
-        print(f"Found data directory: {self.data_dir}")
+        print(f"Found data directory for {satellite}: {self.data_dir}")
         
         # Load utility functions
         self.utils = USGSUtils(self.data_dir, self.prefix)
         
         # Initialise collections
         
-        self.spectra = self.load_minerals_pickle()  # Load mineral spectra from pickle or raw data
+        self.spectra = self.load_all_chapters_pickle()  # Load mineral spectra from pickle or raw data
         self.wavelengths = None           # Normal wavelengths (for plotting with spectra)
         self.wavelengths_hp = None        # Hyperspectral wavelengths (for band data)
         self.bandpass_nm = None           # Bandpass in nanometers
@@ -67,9 +67,9 @@ class USGSSatelliteSpectra:
         
         if wavelength_files:
             wavelength_file = wavelength_files[0]
-            print(f"Loading normal wavelength data from: {wavelength_file}")
+            # print(f"Loading normal wavelength data from: {wavelength_file}")
             self.wavelengths = np.loadtxt(wavelength_file, skiprows=1)
-            print(f"Loaded normal wavelength data: {len(self.wavelengths)} bands")
+            # print(f"Loaded normal wavelength data: {len(self.wavelengths)} bands")
         
         # Load hyperspectral wavelengths ()
         hp_wavelength_pattern = f"{self.prefix}Wavelengths_*S*R*F*.txt"
@@ -77,7 +77,7 @@ class USGSSatelliteSpectra:
         
         if hp_wavelength_files:
             hp_wavelength_file = hp_wavelength_files[0]
-            print(f"Loading hyperspectral wavelength data from: {hp_wavelength_file}")
+            #print(f"Loading hyperspectral wavelength data from: {hp_wavelength_file}")
             self.wavelengths_hp = np.loadtxt(hp_wavelength_file, skiprows=1)
             print(f"Loaded hyperspectral wavelength data: {len(self.wavelengths_hp)} channels")
         
@@ -97,7 +97,7 @@ class USGSSatelliteSpectra:
         
         if bandpass_micron_files:
             bandpass_micron_file = bandpass_micron_files[0]
-            print(f"Loading bandpass data (microns) from: {bandpass_micron_file}")
+            #print(f"Loading bandpass data (microns) from: {bandpass_micron_file}")
             self.bandpass_micron = np.loadtxt(bandpass_micron_file, skiprows=1)
             print(f"Loaded bandpass data (microns): {len(self.bandpass_micron)} values")
         
@@ -108,7 +108,7 @@ class USGSSatelliteSpectra:
         band_pattern = f"{self.prefix}*SRF*Band*.txt"
         band_files = list(self.data_dir.glob(band_pattern))
         
-        print(f"Found {len(band_files)} band response function files")
+        #print(f"Found {len(band_files)} band response function files")
         
         for band_file in band_files:
             try:
@@ -123,7 +123,7 @@ class USGSSatelliteSpectra:
                     band_number = parts[parts.index('Band')+1]
                     # Extract band name (everything after the satellite name)
                     band_name_parts = parts[4:]  # Skip 'SRF', 'Band', number, and satellite name
-                    band_name = '_'.join(band_name_parts) if band_name_parts else f"Band_{band_number}"
+                    band_name = band_name_parts[-1] if band_name_parts else f"B{band_number}"
                     
                     # Load the band response function
                     band_data = np.loadtxt(band_file, skiprows=1)
@@ -142,31 +142,6 @@ class USGSSatelliteSpectra:
                 print(f"Error loading band file {band_file}: {str(e)}")
         
         print(f"Successfully loaded {len(self.bands)} band response functions")
-            
-    def load_minerals_pickle(self, max_samples=None):
-        """
-        Load mineral spectra from pre-saved pickle files
-        
-        Parameters:
-        -----------
-        max_samples : int or None
-            Maximum number of samples to load (None for all)
-            
-        Returns:
-        --------
-        dict
-            Dictionary of loaded mineral spectra
-        """
-        try:
-            with open(f'pickle_data/{self.prefix}data.pkl', 'rb') as f:
-                self.spectra = pickle.load(f)
-            print(f"Loaded {len(self.spectra)} spectra from pickle file")    
-            return self.spectra  
-                
-        except Exception as e:
-            print(f"Error loading spectrum from pickle file: {str(e)}") 
-            self.spectra = self.utils.load_minerals(self)
-            self.utils.save_to_pickle(self.spectra)   
             
     def get_band_info(self):
         """
@@ -661,3 +636,202 @@ class USGSSatelliteSpectra:
         plt.tight_layout()
         return fig
     
+    def load_all_chapters_pickle(self, chapters=['A', 'C', 'L', 'M', 'O', 'S', 'V'], max_samples_per_chapter=None):
+        """
+        Load satellite spectra from multiple chapters with proper pickle handling
+        
+        Parameters:
+        -----------
+        chapters : list
+            List of chapter codes to load (e.g., ['M', 'S', 'V'])
+        max_samples_per_chapter : int or None
+            Maximum number of samples per chapter
+            
+        Returns:
+        --------
+        dict
+            Dictionary of loaded spectra from all chapters
+        """
+        all_spectra = {}
+        
+        # Chapter directory mapping
+        chapter_dirs = {
+            'M': 'ChapterM_Minerals',
+            'S': 'ChapterS_SoilsAndMixtures',
+            'C': 'ChapterC_Coatings',
+            'L': 'ChapterL_Liquids',
+            'O': 'ChapterO_OrganicCompounds',
+            'A': 'ChapterA_ArtificialMaterials',
+            'V': 'ChapterV_Vegetation'
+        }
+        
+        for chapter in chapters:
+            if chapter not in chapter_dirs:
+                print(f"Unknown chapter: {chapter}, skipping...")
+                continue
+            
+            chapter_dir_name = chapter_dirs[chapter]
+            pickle_file = f'pickle_data/{self.prefix}{chapter}_data.pkl'
+            
+            # Try to load from pickle first
+            try:
+                with open(pickle_file, 'rb') as f:
+                    chapter_spectra = pickle.load(f)
+                print(f"Loaded {len(chapter_spectra)} spectra from pickle: {pickle_file}")
+                
+            except FileNotFoundError:
+                print(f"Pickle file not found: {pickle_file} \nNow loading from ASCII files instead")
+                
+                # Load from ASCII files
+                chapter_spectra = self._load_chapter_from_ascii(
+                    chapter, 
+                    chapter_dir_name, 
+                    max_samples_per_chapter
+                )
+                
+                if chapter_spectra:
+                    # Save to pickle for future use
+                    try:
+                        # Ensure pickle directory exists
+                        import os
+                        os.makedirs('pickle_data', exist_ok=True)
+                        
+                        with open(pickle_file, 'wb') as f:
+                            pickle.dump(chapter_spectra, f)
+                        print(f"Saved {len(chapter_spectra)} spectra to pickle: {pickle_file}")
+                    except Exception as save_error:
+                        print(f"Error saving pickle: {save_error}")
+                else:
+                    print(f"No spectra loaded from chapter {chapter}")
+                    continue
+                    
+            except Exception as e:
+                print(f"Error loading pickle: {str(e)}")
+                print(f"Attempting to load from ASCII files...")
+                
+                chapter_spectra = self._load_chapter_from_ascii(
+                    chapter, 
+                    chapter_dir_name, 
+                    max_samples_per_chapter
+                )
+                
+                if chapter_spectra:
+                    try:
+                        import os
+                        os.makedirs('pickle_data', exist_ok=True)
+                        with open(pickle_file, 'wb') as f:
+                            pickle.dump(chapter_spectra, f)
+                        print(f"Saved {len(chapter_spectra)} spectra to pickle: {pickle_file}")
+                    except Exception as save_error:
+                        print(f"Error saving pickle: {save_error}")
+            
+            # Add chapter info to metadata and update keys to avoid conflicts
+            for key, spectrum_data in chapter_spectra.items():
+                spectrum_data['metadata']['chapter'] = chapter_dir_name.split('_')[1]
+                # Add chapter prefix to key to avoid conflicts between chapters
+                unique_key = f"{chapter}_{key}"
+                all_spectra[unique_key] = spectrum_data
+        
+        self.spectra = all_spectra
+        print(f"\n{'='*60}")
+        print(f"Total loaded: {len(all_spectra)} spectra from {len(chapters)} chapters")
+        print(f"{'='*60}\n")
+        
+        return all_spectra
+
+    def _load_chapter_from_ascii(self, chapter_code, chapter_dir_name, max_samples=None):
+        """
+        Load spectra from a specific chapter directory
+        
+        Parameters:
+        -----------
+        chapter_code : str
+            Single letter chapter code (e.g., 'M', 'S')
+        chapter_dir_name : str
+            Full chapter directory name (e.g., 'ChapterM_Minerals')
+        max_samples : int or None
+            Maximum number of samples to load
+            
+        Returns:
+        --------
+        dict
+            Dictionary of loaded spectra
+        """
+        # Try multiple possible locations for the chapter directory
+        possible_paths = [
+            self.data_dir / chapter_dir_name,  # Direct subdirectory
+            self.data_dir.parent / chapter_dir_name,  # Parent directory
+            self.data_dir / "ChapterM_Minerals" / ".." / chapter_dir_name  # Sibling to Minerals
+        ]
+        
+        chapter_dir = None
+        for path in possible_paths:
+            if path.exists():
+                chapter_dir = path
+                break
+        
+        if chapter_dir is None:
+            print(f"Chapter directory not found: {chapter_dir_name}")
+            print(f"  Searched in:")
+            for path in possible_paths:
+                print(f"    - {path}")
+            return {}
+        
+        print(f"Found chapter directory for ASCII data: {chapter_dir}")
+        
+        # Find all spectrum files matching the pattern
+        spectrum_files = list(chapter_dir.glob(f"{self.prefix}*.txt"))
+        
+        if not spectrum_files:
+            print(f"No spectrum files found matching pattern: {self.prefix}*.txt")
+            return {}
+        
+        print(f"Found {len(spectrum_files)} spectrum files")
+        
+        if max_samples and max_samples < len(spectrum_files):
+            spectrum_files = spectrum_files[:max_samples]
+            print(f"  Limited to {max_samples} samples")
+        
+        chapter_spectra = {}
+        successful = 0
+        failed = 0
+        
+        for i, filename in enumerate(spectrum_files):
+            if i % 50 == 0:  # Progress update every 50 files
+                print(f"  Progress: {i+1}/{len(spectrum_files)} files processed...")
+            
+            try:
+                # Parse filename for metadata
+                metadata = self.utils._parse_filename(str(filename))
+                
+                if not metadata:
+                    print(f"! No metadata, skipping file with unrecognized format: {filename.name}")
+                    failed += 1
+                    continue
+                
+                # Load spectrum data
+                spectrum = np.loadtxt(filename, skiprows=1)
+
+                
+                # Replace deleted channels with NaN
+                spectrum[spectrum < -1e30] = np.nan
+                
+                # Create a unique key (without chapter prefix here - added later)
+                key = f"{metadata['material']}_{metadata['sample_id']}"
+                
+                chapter_spectra[key] = {
+                    'metadata': metadata,
+                    'spectrum': spectrum
+                }
+                successful += 1
+                
+            except Exception as e:
+                failed += 1
+                if failed <= 5:  # Only print first 5 errors
+                    print(f"Error loading {filename.name}: {str(e)}")
+        
+        print(f"Successfully loaded: {successful} spectra")
+        if failed > 0:
+            print(f"Failed to load: {failed} files")
+        
+        return chapter_spectra
